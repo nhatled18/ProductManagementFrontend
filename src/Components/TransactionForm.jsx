@@ -1,6 +1,6 @@
 // components/TransactionForm.jsx
 import React, { useState } from 'react';
-
+// import '../assets/styles/TransactionForm.css';
 function TransactionForm({ products, formData, onChange, onSubmit }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -26,24 +26,18 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
 
   const selectedProduct = products.find(p => p.id === Number(formData.productId));
 
+  // Hiển thị tiêu đề
+  const getTitle = () => {
+    if (formData.type === 'import') return 'Nhập Kho';
+    if (formData.type === 'export') return 'Xuất Kho';
+    return 'Giao dịch';
+  };
+
   return (
     <div className="card">
       <div className="card-header">
-        <h3 className="card-title">
-          {formData.type === 'import' ? '📥 Nhập Kho' : '📤 Xuất Kho'}
-        </h3>
-      </div>
-
-      <div className="form-group">
-        <label className="form-label">Loại giao dịch</label>
-        <select
-          value={formData.type}
-          onChange={(e) => onChange({ ...formData, type: e.target.value })}
-        >
-          <option value="import">Nhập kho</option>
-          <option value="export">Xuất kho</option>
-        </select>
-      </div>
+        <h3 className="card-title">{getTitle()}</h3>
+      </div>    
 
       <div className="form-group">
         <label className="form-label">Sản phẩm</label>

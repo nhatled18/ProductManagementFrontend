@@ -482,4 +482,80 @@ textarea {
   .activity-divider {
     display: none;
   }
+
+/* assets/styles/Common.css - Thêm vào cuối file */
+
+.display-container {
+  padding: 1rem;
+}
+
+.display-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.product-display-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: all 0.3s;
+}
+
+.product-display-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.product-display-info h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #1a1a1a;
+}
+
+.product-sku {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.product-price {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #4f46e5;
+  margin: 1rem 0;
+}
+
+.product-stock {
+  color: #374151;
+  margin-bottom: 1rem;
+}
+
+.product-stock strong {
+  color: #10b981;
+}
+
+.product-display-actions {
+  margin-top: 1rem;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+
 }

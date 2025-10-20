@@ -4,6 +4,7 @@ import "../assets/styles/Dashboard.css";
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
 import TransactionTab from './TransactionTab';
+import ProductDisplay from './ProductDisplay'; // ✅ Import component mới
 import HistoryTab from './HistoryTab';
 
 function DashboardPage({ currentUser, onLogout }) {
@@ -123,16 +124,9 @@ function DashboardPage({ currentUser, onLogout }) {
               />
             } />
             
+            {/* ✅ THAY ĐỔI: Dùng ProductDisplay thay vì TransactionTab */}
             <Route path="display" element={
-              <TransactionTab
-                products={products}
-                setProducts={setProducts}
-                transactions={transactions}
-                setTransactions={setTransactions}
-                defaultType="display"
-                historyLogs={historyLogs}
-                setHistoryLogs={setHistoryLogs}
-              />
+              <ProductDisplay products={products} />
             } />
             
             <Route path="history" element={

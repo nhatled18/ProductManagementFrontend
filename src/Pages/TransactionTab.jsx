@@ -1,5 +1,5 @@
 // pages/TransactionTab.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import "../assets/styles/Transaction.css";
 import "../assets/styles/Common.css";
 import TransactionForm from '../Components/TransactionForm';
@@ -12,7 +12,7 @@ function TransactionTab({
   setTransactions,
   historyLogs,
   setHistoryLogs,
-  defaultType = 'import'
+  defaultType = 'import' // Chỉ 'import' hoặc 'export'
 }) {
   const [transactionForm, setTransactionForm] = useState({
     productId: '',
@@ -21,15 +21,39 @@ function TransactionTab({
     note: ''
   });
 
-  const handleTransaction = () => {
-    const product = products.find(p => p.id === Number(transactionForm.productId));
-    if (!product) return alert('Không tìm thấy sản phẩm!');
+  // ✅ Cập nhật type khi chuyển giữa Nhập kho và Xuất kho
+  useEffect(() => {
+    setTransactionForm(prev => ({
+      ...prev,
+      type: defaultType
+    }));
+  }, [defaultType]);
 
-    if (transactionForm.type === 'export' && product.quantity < transactionForm.quantity) {
-      alert('Số lượng tồn kho không đủ!');
+  const handleTransaction = () => {
+    // Validate
+    if (!transactionForm.productId) {
+      alert('Vui lòng chọn sản phẩm!');
+      return;
+    }
+    
+    if (!transactionForm.quantity || transactionForm.quantity <= 0) {
+      alert('Vui lòng nhập số lượng hợp lệ!');
       return;
     }
 
+    const product = products.find(p => p.id === Number(transactionForm.productId));
+    if (!product) {
+      alert('Không tìm thấy sản phẩm!');
+      return;
+    }
+
+    // Kiểm tra tồn kho khi xuất
+    if (transactionForm.type === 'export' && product.quantity < transactionForm.quantity) {
+      alert(`Số lượng tồn kho không đủ! Hiện có: ${product.quantity}`);
+      return;
+    }
+
+    // Tạo giao dịch mới
     const newTransaction = {
       id: Math.max(...transactions.map(t => t.id), 0) + 1,
       productId: Number(transactionForm.productId),
@@ -40,6 +64,7 @@ function TransactionTab({
     };
     setTransactions([...transactions, newTransaction]);
 
+    // Cập nhật tồn kho
     setProducts(products.map(p =>
       p.id === Number(transactionForm.productId)
         ? {
@@ -52,7 +77,7 @@ function TransactionTab({
         : p
     ));
 
-    
+    // Thêm log lịch sử
     const newHistory = {
       id: Date.now(),
       action: transactionForm.type,
@@ -65,9 +90,16 @@ function TransactionTab({
           : `Xuất ${transactionForm.quantity} sản phẩm khỏi kho`,
       timestamp: new Date().toISOString()
     };
-    setHistoryLogs([...historyLogs, newHistory]); 
+    setHistoryLogs([...historyLogs, newHistory]);
 
-    setTransactionForm({ productId: '', type: defaultType, quantity: 0, note: '' });
+    // Reset form sau khi thành công
+    setTransactionForm({
+      productId: '',
+      type: defaultType,
+      quantity: 0,
+      note: ''
+    });
+
     alert('Giao dịch thành công!');
   };
 
@@ -80,7 +112,11 @@ function TransactionTab({
         onSubmit={handleTransaction}
       />
 
-      <TransactionHistory transactions={transactions} products={products} />
+      <TransactionHistory 
+        transactions={transactions} 
+        products={products}
+        filterType={defaultType} // ✅ Chỉ hiển thị lịch sử theo type (import/export)
+      />
     </div>
   );
 }

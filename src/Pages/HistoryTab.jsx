@@ -25,9 +25,9 @@ function HistoryTab({ historyLogs, currentUser }) {
       case 'add': return 'Thêm sản phẩm';
       case 'update': return 'Cập nhật sản phẩm';
       case 'delete': return 'Xóa sản phẩm';
-      case 'import': return '📦 Nhập kho';
-      case 'export': return '📤 Xuất kho';
-      case 'display': return '🎨 Xuất trưng bày';
+      case 'import': return 'Nhập kho';
+      case 'export': return 'Xuất kho';
+      case 'display': return 'Xuất trưng bày';
       default: return action;
     }
   };
