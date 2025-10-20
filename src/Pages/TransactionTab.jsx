@@ -52,7 +52,7 @@ function TransactionTab({
         : p
     ));
 
-    // ✅ Ghi lịch sử vào HistoryTab
+    
     const newHistory = {
       id: Date.now(),
       action: transactionForm.type,
@@ -65,7 +65,7 @@ function TransactionTab({
           : `Xuất ${transactionForm.quantity} sản phẩm khỏi kho`,
       timestamp: new Date().toISOString()
     };
-    setHistoryLogs([...historyLogs, newHistory]); // ✅ cập nhật history chung
+    setHistoryLogs([...historyLogs, newHistory]); 
 
     setTransactionForm({ productId: '', type: defaultType, quantity: 0, note: '' });
     alert('Giao dịch thành công!');

@@ -109,7 +109,7 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
       </div>
 
       <button className="btn-primary" onClick={onSubmit} style={{ width: '100%' }}>
-        ✅ Xác nhận giao dịch
+        Xác nhận giao dịch
       </button>
     </div>
   );

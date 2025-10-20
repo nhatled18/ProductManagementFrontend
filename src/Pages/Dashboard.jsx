@@ -70,37 +70,37 @@ function DashboardPage({ currentUser, onLogout }) {
           className={`tab-vertical ${currentTab === 'overview' ? 'active' : ''}`}
           onClick={() => setCurrentTab('overview')}
         >
-          📊 Tổng quan
+          Tổng quan
         </button>
         <button
           className={`tab-vertical ${currentTab === 'products' ? 'active' : ''}`}
           onClick={() => setCurrentTab('products')}
         >
-          📦 Quản lý sản phẩm
+          Quản lý sản phẩm
         </button>
         <button
           className={`tab-vertical ${currentTab === 'import' ? 'active' : ''}`}
           onClick={() => setCurrentTab('import')}
         >
-          📥 Nhập kho
+          Nhập kho
         </button>
         <button
           className={`tab-vertical ${currentTab === 'export' ? 'active' : ''}`}
           onClick={() => setCurrentTab('export')}
         >
-          📤 Xuất kho
+          Xuất kho
         </button>
         <button
           className={`tab-vertical ${currentTab === 'display' ? 'active' : ''}`}
           onClick={() => setCurrentTab('display')}
         >
-          🎨 Trưng bày
+          Trưng bày
         </button>
         <button
           className={`tab-vertical ${currentTab === 'history' ? 'active' : ''}`}
           onClick={() => setCurrentTab('history')}
         >
-          📋 Lịch sử hoạt động
+          Lịch sử hoạt động
         </button>
       </div>
 

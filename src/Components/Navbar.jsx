@@ -13,7 +13,7 @@ function Navbar({ currentUser, onLogout }) {
           Xin chào, <strong>{currentUser}</strong>
         </span>
         <button className="btn-logout" onClick={onLogout}>
-          🚪 Đăng xuất
+          Đăng xuất
         </button>
       </div>
     </nav>
