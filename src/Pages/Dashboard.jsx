@@ -4,7 +4,7 @@ import "../assets/styles/Dashboard.css";
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
 import TransactionTab from './TransactionTab';
-import ProductDisplay from './ProductDisplay'; // ✅ Import component mới
+import ProductDisplay from './ProductDisplay'; 
 import HistoryTab from './HistoryTab';
 
 function DashboardPage({ currentUser, onLogout }) {

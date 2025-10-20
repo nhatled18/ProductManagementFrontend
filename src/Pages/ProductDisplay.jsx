@@ -39,9 +39,9 @@ function ProductDisplay({ products }) {
         <div className="premium-header">
           <div className="header-content">
             <div className="header-badge">✨ Premium Collection</div>
-            <h1 className="premium-title">Trưng Bày Sản Phẩm</h1>
+            <h1 className="premium-title">Trưng Bày</h1>
             <p className="premium-subtitle">
-              Khám phá những sản phẩm công nghệ hàng đầu
+              Khám phá những sản phẩm của chúng tôi
             </p>
           </div>
         </div>

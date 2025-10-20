@@ -12,7 +12,7 @@ function TransactionTab({
   setTransactions,
   historyLogs,
   setHistoryLogs,
-  defaultType = 'import' // Chỉ 'import' hoặc 'export'
+  defaultType = 'import' 
 }) {
   const [transactionForm, setTransactionForm] = useState({
     productId: '',
@@ -21,7 +21,6 @@ function TransactionTab({
     note: ''
   });
 
-  // ✅ Cập nhật type khi chuyển giữa Nhập kho và Xuất kho
   useEffect(() => {
     setTransactionForm(prev => ({
       ...prev,
@@ -100,7 +99,7 @@ function TransactionTab({
       note: ''
     });
 
-    alert('Giao dịch thành công!');
+    alert('Nhập kho thành công!');
   };
 
   return (
@@ -115,7 +114,7 @@ function TransactionTab({
       <TransactionHistory 
         transactions={transactions} 
         products={products}
-        filterType={defaultType} // ✅ Chỉ hiển thị lịch sử theo type (import/export)
+        filterType={defaultType} 
       />
     </div>
   );

@@ -27,7 +27,6 @@ function HistoryTab({ historyLogs, currentUser }) {
       case 'delete': return 'Xóa sản phẩm';
       case 'import': return 'Nhập kho';
       case 'export': return 'Xuất kho';
-      case 'display': return 'Xuất trưng bày';
       default: return action;
     }
   };
@@ -39,7 +38,6 @@ function HistoryTab({ historyLogs, currentUser }) {
       case 'delete': return 'badge-red';
       case 'import': return 'badge-green';
       case 'export': return 'badge-orange';
-      case 'display': return 'badge-purple';
       default: return 'badge-blue';
     }
   };
@@ -135,17 +133,17 @@ function HistoryTab({ historyLogs, currentUser }) {
 
                           <div className="activity-meta">
                             <span className="meta-item">
-                              👤 <span className="meta-value">{log.user}</span>
+                              <span className="meta-value">{log.user}</span>
                             </span>
                             {log.productSku && (
                               <span className="meta-item">
-                                📦 SKU: <span className="meta-value">{log.productSku}</span>
+                                SKU: <span className="meta-value">{log.productSku}</span>
                               </span>
                             )}
                             {(log.action === 'import' || log.action === 'export' || log.action === 'display') && 
                              log.oldQuantity !== undefined && (
                               <span className="meta-item meta-stock">
-                                📊 Tồn kho: 
+                                Tồn kho: 
                                 <span className="meta-value">
                                   {log.oldQuantity} → {log.newQuantity}
                                 </span>

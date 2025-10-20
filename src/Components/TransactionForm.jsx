@@ -1,4 +1,3 @@
-// components/TransactionForm.jsx
 import React, { useState } from 'react';
 // import '../assets/styles/TransactionForm.css';
 function TransactionForm({ products, formData, onChange, onSubmit }) {
