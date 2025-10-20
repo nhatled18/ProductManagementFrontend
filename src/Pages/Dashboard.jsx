@@ -1,5 +1,5 @@
-// pages/DashboardPage.jsx - FIXED VERSION
 import React, { useState } from 'react';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import "../assets/styles/Dashboard.css";
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
@@ -7,7 +7,8 @@ import TransactionTab from './TransactionTab';
 import HistoryTab from './HistoryTab';
 
 function DashboardPage({ currentUser, onLogout }) {
-  const [currentTab, setCurrentTab] = useState('overview');
+  const location = useLocation();
+  
   const [products, setProducts] = useState([
     { id: 1, name: 'Laptop Dell XPS 13', sku: 'LAP001', quantity: 25, price: 25000000, category: 'Electronics', minStock: 5 },
     { id: 2, name: 'iPhone 15 Pro', sku: 'PHN001', quantity: 40, price: 28000000, category: 'Electronics', minStock: 10 },
@@ -22,10 +23,8 @@ function DashboardPage({ currentUser, onLogout }) {
     { id: 3, productId: 3, type: 'export', quantity: 3, date: '2025-10-17', note: 'Xuất hàng cho đơn hàng #1002' }
   ]);
 
-  // History Logs State
   const [historyLogs, setHistoryLogs] = useState([]);
 
-  // Function to add history log
   const addHistoryLog = (action, productName, productSku, details) => {
     const newLog = {
       id: Date.now(),
@@ -39,7 +38,6 @@ function DashboardPage({ currentUser, onLogout }) {
     setHistoryLogs([...historyLogs, newLog]);
   };
 
-  // Wrapper functions for ProductsTab
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
     addHistoryLog('add', product.name, product.sku, 
@@ -66,76 +64,84 @@ function DashboardPage({ currentUser, onLogout }) {
   return (
     <div className="dashboard-layout">
       <div className="tabs-vertical">
-        <button
-          className={`tab-vertical ${currentTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('overview')}
-        >
+        <Link to="/dashboard" className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}>
           Tổng quan
-        </button>
-        <button
-          className={`tab-vertical ${currentTab === 'products' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('products')}
-        >
+        </Link>
+        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}>
           Quản lý sản phẩm
-        </button>
-        <button
-          className={`tab-vertical ${currentTab === 'import' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('import')}
-        >
+        </Link>
+        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}>
           Nhập kho
-        </button>
-        <button
-          className={`tab-vertical ${currentTab === 'export' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('export')}
-        >
+        </Link>
+        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}>
           Xuất kho
-        </button>
-        <button
-          className={`tab-vertical ${currentTab === 'display' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('display')}
-        >
+        </Link>
+        <Link to="/dashboard/display" className={`tab-vertical ${location.pathname === '/dashboard/display' ? 'active' : ''}`}>
           Trưng bày
-        </button>
-        <button
-          className={`tab-vertical ${currentTab === 'history' ? 'active' : ''}`}
-          onClick={() => setCurrentTab('history')}
-        >
+        </Link>
+        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}>
           Lịch sử hoạt động
-        </button>
+        </Link>
       </div>
 
-      {/* Content */}
       <div className="dashboard-new">
         <div className="dashboard-content">
-          {currentTab === 'overview' && (
-            <OverviewTab products={products} transactions={transactions} />
-          )}
-          {currentTab === 'products' && (
-            <ProductsTab 
-              products={products} 
-              setProducts={setProducts}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProduct={handleDeleteProduct}
-            />
-          )}
-          {['import', 'export', 'display'].includes(currentTab) && (
-            <TransactionTab
-              products={products}
-              setProducts={setProducts}
-              transactions={transactions}
-              setTransactions={setTransactions}
-              defaultType={currentTab}
-              historyLogs={historyLogs}      // ✅ Truyền state
-              setHistoryLogs={setHistoryLogs} // ✅ Truyền setter function
-            />
-          )}
-          {currentTab === 'history' && (
-            <HistoryTab 
-              historyLogs={historyLogs} 
-              currentUser={currentUser}
-            />
-          )}
+          <Routes>
+            <Route index element={<OverviewTab products={products} transactions={transactions} />} />
+            
+            <Route path="products" element={
+              <ProductsTab 
+                products={products} 
+                setProducts={setProducts}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+              />
+            } />
+            
+            <Route path="import" element={
+              <TransactionTab
+                products={products}
+                setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                defaultType="import"
+                historyLogs={historyLogs}
+                setHistoryLogs={setHistoryLogs}
+              />
+            } />
+            
+            <Route path="export" element={
+              <TransactionTab
+                products={products}
+                setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                defaultType="export"
+                historyLogs={historyLogs}
+                setHistoryLogs={setHistoryLogs}
+              />
+            } />
+            
+            <Route path="display" element={
+              <TransactionTab
+                products={products}
+                setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                defaultType="display"
+                historyLogs={historyLogs}
+                setHistoryLogs={setHistoryLogs}
+              />
+            } />
+            
+            <Route path="history" element={
+              <HistoryTab 
+                historyLogs={historyLogs} 
+                currentUser={currentUser}
+              />
+            } />
+          </Routes>
         </div>
       </div>
     </div>
