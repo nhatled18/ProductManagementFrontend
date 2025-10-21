@@ -20,7 +20,7 @@ function LoginPage({ onLogin }) {
     const user = users.find(u => u.username === username && u.password === password);
     
     if (user) {
-      onLogin(username);
+     onLogin({ username });
     } else {
       alert('Tên đăng nhập hoặc mật khẩu không đúng!');
     }

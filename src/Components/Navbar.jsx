@@ -1,7 +1,7 @@
 // components/Navbar.jsx
 // import React from 'react';
 import '../assets/styles/Navbar.css';
-function Navbar({ currentUser, onLogout }) {
+function Navbar({ user, onLogout }) {
   return (
     <nav className="navbar">
       <div className="navbar-brand">
@@ -10,7 +10,7 @@ function Navbar({ currentUser, onLogout }) {
       </div>
       <div className="navbar-user">
         <span className="user-name">
-          Xin chào, <strong>{currentUser}</strong>
+          Xin chào, <strong>{user?.username}</strong>
         </span>
         <button className="btn-logout" onClick={onLogout}>
           Đăng xuất
