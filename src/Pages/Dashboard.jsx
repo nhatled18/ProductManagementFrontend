@@ -94,6 +94,10 @@ function DashboardPage({ currentUser, onLogout }) {
               <ProductsTab 
                 products={products} 
                 setProducts={setProducts}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                historyLogs={historyLogs}
+                setHistoryLogs={setHistoryLogs}
                 onAddProduct={handleAddProduct}
                 onUpdateProduct={handleUpdateProduct}
                 onDeleteProduct={handleDeleteProduct}
@@ -124,7 +128,6 @@ function DashboardPage({ currentUser, onLogout }) {
               />
             } />
             
-            {/* ✅ THAY ĐỔI: Dùng ProductDisplay thay vì TransactionTab */}
             <Route path="display" element={
               <ProductDisplay products={products} />
             } />
