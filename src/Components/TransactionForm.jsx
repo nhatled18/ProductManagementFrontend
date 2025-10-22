@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 // import '../assets/styles/TransactionForm.css';
+
 function TransactionForm({ products, formData, onChange, onSubmit }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const filteredProducts = products.filter(p => {
-  const name = p.name || p.productName || ""; // tránh undefined
-  const sku = p.sku || "";
-  const term = searchTerm?.toLowerCase() || "";
+    const name = p.productName || "";
+    const sku = p.sku || "";
+    const group = p.group || "";
+    const term = searchTerm?.toLowerCase() || "";
 
-  return (
-    name.toLowerCase().includes(term) ||
-    sku.toLowerCase().includes(term)
-  );
+    return (
+      name.toLowerCase().includes(term) ||
+      sku.toLowerCase().includes(term) ||
+      group.toLowerCase().includes(term)
+    );
   });
 
   const handleSelectProduct = (product) => {
-    setSearchTerm(product.name);
+    setSearchTerm(product.productName);
     onChange({ ...formData, productId: product.id });
     setShowSuggestions(false);
   };
@@ -53,7 +56,7 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
             onChange={handleSearchChange}
             onFocus={() => setShowSuggestions(true)}
             className="form-input"
-            placeholder="Nhập tên hoặc mã sản phẩm..."
+            placeholder="Nhập tên, nhóm hoặc mã sản phẩm..."
           />
           
           {showSuggestions && searchTerm && filteredProducts.length > 0 && (
@@ -65,8 +68,11 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
                   onClick={() => handleSelectProduct(product)}
                 >
                   <div className="suggestion-info">
-                    <strong>{product.name}</strong>
+                    <strong>{product.productName}</strong>
                     <span className="suggestion-sku">SKU: {product.sku}</span>
+                    {product.group && (
+                      <span className="suggestion-group"> | {product.group}</span>
+                    )}
                   </div>
                   <span className="suggestion-stock">
                     Tồn: {product.quantity}
@@ -78,7 +84,10 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
           
           {selectedProduct && (
             <div className="selected-product-info">
-              <span>✓ {selectedProduct.name}</span>
+              <span>✓ {selectedProduct.productName}</span>
+              {selectedProduct.group && (
+                <span className="text-muted"> ({selectedProduct.group})</span>
+              )}
               <span className="text-muted"> - Tồn kho: {selectedProduct.quantity}</span>
             </div>
           )}
@@ -102,6 +111,7 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
         <textarea
           value={formData.note}
           onChange={(e) => onChange({ ...formData, note: e.target.value })}
+          className="form-input"
           rows="3"
           placeholder="Nhập ghi chú..."
         />

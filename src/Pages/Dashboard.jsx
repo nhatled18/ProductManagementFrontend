@@ -106,15 +106,15 @@ function DashboardPage({ currentUser, onLogout }) {
 
   const handleAddProduct = (product) => {
     setProducts([...products, product]);
-    addHistoryLog('add', product.name, product.sku, 
-      `Thêm sản phẩm mới với số lượng ${product.quantity}, giá ${product.price.toLocaleString('vi-VN')}₫`
+    addHistoryLog('add', product.productName, product.sku, 
+      `Thêm sản phẩm mới với số lượng ${product.quantity}, cost ${product.cost.toLocaleString('vi-VN')}₫, giá niêm yết ${product.retailPrice.toLocaleString('vi-VN')}₫`
     );
   };
 
   const handleUpdateProduct = (id, updatedProduct) => {
     const oldProduct = products.find(p => p.id === id);
     setProducts(products.map(p => p.id === id ? updatedProduct : p));
-    addHistoryLog('update', updatedProduct.name, updatedProduct.sku,
+    addHistoryLog('update', updatedProduct.productName, updatedProduct.sku,
       `Cập nhật thông tin sản phẩm từ số lượng ${oldProduct.quantity} thành ${updatedProduct.quantity}`
     );
   };
@@ -122,7 +122,7 @@ function DashboardPage({ currentUser, onLogout }) {
   const handleDeleteProduct = (id) => {
     const product = products.find(p => p.id === id);
     setProducts(products.filter(p => p.id !== id));
-    addHistoryLog('delete', product.name, product.sku,
+    addHistoryLog('delete', product.productName, product.sku,
       `Xóa sản phẩm khỏi hệ thống`
     );
   };

@@ -14,12 +14,14 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
   const fileInputRef = useRef(null);
 
   const filteredProducts = products.filter(p => {
-  const name = p.name || p.productName || "";  // fallback tránh undefined
-  const sku = p.sku || "";
-  const term = searchTerm?.toLowerCase() || "";
-  return name.toLowerCase().includes(term) || sku.toLowerCase().includes(term);
+    const name = p.productName || "";
+    const sku = p.sku || "";
+    const group = p.group || "";
+    const term = searchTerm?.toLowerCase() || "";
+    return name.toLowerCase().includes(term) || 
+           sku.toLowerCase().includes(term) || 
+           group.toLowerCase().includes(term);
   });
-
 
   const handleAddProduct = (newProduct) => {
     const product = {
@@ -86,33 +88,39 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
       jsonData.forEach((row, index) => {
         try {
           // Validate required fields
-          if (!row['Tên sản phẩm'] || !row['SKU']) {
-            errors.push(`Dòng ${index + 2}: Thiếu tên sản phẩm hoặc SKU`);
+          if (!row['Tên mặt hàng'] || !row['SKU']) {
+            errors.push(`Dòng ${index + 2}: Thiếu tên mặt hàng hoặc SKU`);
             return;
           }
 
-          // Transform data
+          // Transform data để khớp với ProductForm
           const product = {
-            id: nextId++, 
-            name: String(row['Tên sản phẩm']).trim(),
+            id: nextId++,
+            group: row['Nhóm'] ? String(row['Nhóm']).trim() : '',
             sku: String(row['SKU']).trim(),
-            category: row['Danh mục'] ? String(row['Danh mục']).trim() : '',
-            quantity: row['Tồn kho'] ? Number(row['Tồn kho']) : 0,
-            price: row['Giá'] ? Number(row['Giá']) : 0,
-            sellPrice: row['Giá bán'] ? Number(row['Giá bán']) : 0
+            productName: String(row['Tên mặt hàng']).trim(),
+            quantity: row['Số lượng'] ? Number(row['Số lượng']) : 0,
+            displayStock: row['Tồn kho hiển thị'] ? Number(row['Tồn kho hiển thị']) : 0,
+            warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
+            newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
+            soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
+            damagedStock: row['Hong mất'] ? Number(row['Hong mất']) : 0,
+            endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
+            cost: row['Cost'] ? Number(row['Cost']) : 0,
+            retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
           };
 
           // Validate số lượng và giá
           if (isNaN(product.quantity) || product.quantity < 0) {
-            errors.push(`Dòng ${index + 2}: Tồn kho không hợp lệ`);
+            errors.push(`Dòng ${index + 2}: Số lượng không hợp lệ`);
             return;
           }
-          if (isNaN(product.price) || product.price < 0) {
-            errors.push(`Dòng ${index + 2}: Giá không hợp lệ`);
+          if (isNaN(product.cost) || product.cost < 0) {
+            errors.push(`Dòng ${index + 2}: Cost không hợp lệ`);
             return;
           }
-          if (isNaN(product.sellPrice) || product.sellPrice < 0) {
-            errors.push(`Dòng ${index + 2}: Giá bán không hợp lệ`);
+          if (isNaN(product.retailPrice) || product.retailPrice < 0) {
+            errors.push(`Dòng ${index + 2}: Giá niêm yết không hợp lệ`);
             return;
           }
 
@@ -162,10 +170,10 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
             const newHistoryLogs = importedProducts.map(product => ({
               id: Date.now() + product.id,
               action: 'import',
-              productName: product.name,
+              productName: product.productName,
               productSku: product.sku,
               user: 'Admin',
-              details: `Import từ Excel - Thêm sản phẩm mới với số lượng ${product.quantity}, giá ${product.price.toLocaleString('vi-VN')}₫`,
+              details: `Import từ Excel - Thêm sản phẩm mới với số lượng ${product.quantity}, cost ${product.cost.toLocaleString('vi-VN')}₫, giá niêm yết ${product.retailPrice.toLocaleString('vi-VN')}₫`,
               timestamp: currentTimestamp
             }));
             

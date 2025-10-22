@@ -5,22 +5,21 @@ function ProductDisplay({ products }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const categories = ['all', ...new Set(products.map(p => p.category))];
+  const categories = ['all', ...new Set(products.map(p => p.group).filter(Boolean))];
 
   const filteredProducts = products
     .filter(p => {
-    const name = p.name || p.productName || ""; // fallback để tránh undefined
-    const sku = p.sku || "";
-    const category = p.category || "";
-    const term = searchTerm?.toLowerCase() || "";
+      const name = p.productName || "";
+      const sku = p.sku || "";
+      const group = p.group || "";
+      const term = searchTerm?.toLowerCase() || "";
 
-    return (
-      (selectedCategory === 'all' || category === selectedCategory) &&
-      (name.toLowerCase().includes(term) || sku.toLowerCase().includes(term))
-    );
-  })
-  .filter(p => p.quantity > 0);
-
+      return (
+        (selectedCategory === 'all' || group === selectedCategory) &&
+        (name.toLowerCase().includes(term) || sku.toLowerCase().includes(term))
+      );
+    })
+    .filter(p => p.quantity > 0);
 
   // Random colors for product cards
   const cardColors = [
@@ -84,7 +83,7 @@ function ProductDisplay({ products }) {
                 onClick={() => setSelectedCategory(cat)}
               >
                 <span className="pill-icon">
-                  {cat === 'all' ? '🎯' : cat === 'Electronics' ? '⚡' : '🎧'}
+                  {cat === 'all' ? '🎯' : '📦'}
                 </span>
                 <span className="pill-text">
                   {cat === 'all' ? 'Tất cả' : cat}
@@ -92,7 +91,7 @@ function ProductDisplay({ products }) {
                 <span className="pill-count">
                   {cat === 'all' 
                     ? products.filter(p => p.quantity > 0).length 
-                    : products.filter(p => p.category === cat && p.quantity > 0).length}
+                    : products.filter(p => p.group === cat && p.quantity > 0).length}
                 </span>
               </button>
             ))}
@@ -117,7 +116,7 @@ function ProductDisplay({ products }) {
                 >
                   <div className="image-overlay"></div>
                   <div className="product-icon">
-                    {product.category === 'Electronics' ? '💻' : '🎧'}
+                    📦
                   </div>
                   {product.quantity <= 10 && (
                     <div className="limited-badge">
@@ -129,10 +128,10 @@ function ProductDisplay({ products }) {
                 {/* Product Info */}
                 <div className="product-info-modern">
                   <div className="product-category-badge">
-                    {product.category}
+                    {product.group || 'Chưa phân loại'}
                   </div>
                   
-                  <h3 className="product-name-modern">{product.name}</h3>
+                  <h3 className="product-name-modern">{product.productName}</h3>
                   
                   <div className="product-meta">
                     <span className="meta-item">
@@ -150,8 +149,13 @@ function ProductDisplay({ products }) {
 
                   <div className="price-section-modern">
                     <div className="price-main">
-                      {product.price.toLocaleString('vi-VN')}₫
+                      {product.retailPrice.toLocaleString('vi-VN')}₫
                     </div>
+                    {product.cost > 0 && product.cost !== product.retailPrice && (
+                      <div className="price-cost">
+                        Cost: {product.cost.toLocaleString('vi-VN')}₫
+                      </div>
+                    )}
                   </div>
 
                   <button className="cta-button">
