@@ -1,28 +1,43 @@
-// components/ProductForm.jsx
 import React, { useState } from 'react';
 
 function ProductForm({ onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    name: '',
+    group: '',
     sku: '',
+    productName: '',
     quantity: 0,
-    price: 0,
-    category: '',
-    minStock: 5
+    displayStock: 0,
+    warehouseStock: 0,
+    newStock: 0,
+    soldStock: 0,
+    damagedStock: 0,
+    endingStock: 0,
+    cost: 0,
+    retailPrice: 0
   });
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.sku || formData.price <= 0) {
+    if (!formData.productName || !formData.sku) {
       alert('Vui lòng điền đầy đủ thông tin sản phẩm!');
       return;
     }
     onSubmit({
       ...formData,
       quantity: Number(formData.quantity),
-      price: Number(formData.price),
-      minStock: Number(formData.minStock)
+      displayStock: Number(formData.displayStock),
+      warehouseStock: Number(formData.warehouseStock),
+      newStock: Number(formData.newStock),
+      soldStock: Number(formData.soldStock),
+      damagedStock: Number(formData.damagedStock),
+      endingStock: Number(formData.endingStock),
+      cost: Number(formData.cost),
+      retailPrice: Number(formData.retailPrice)
     });
-    setFormData({ name: '', sku: '', quantity: 0, price: 0, category: '', minStock: 5 });
+    setFormData({ 
+      group: '', sku: '', productName: '', quantity: 0, displayStock: 0, 
+      warehouseStock: 0, newStock: 0, soldStock: 0, damagedStock: 0, 
+      endingStock: 0, cost: 0, retailPrice: 0 
+    });
   };
 
   return (
@@ -32,23 +47,33 @@ function ProductForm({ onSubmit, onCancel }) {
       </h3>
       <div className="form-grid">
         <div className="form-group">
-          <label className="form-label">Tên sản phẩm</label>
+          <label className="form-label">Nhóm</label>
           <input
             type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            value={formData.group}
+            onChange={(e) => setFormData({ ...formData, group: e.target.value })}
             className="form-input"
-            placeholder="Nhập tên sản phẩm"
+            placeholder="Nhập nhóm sản phẩm"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Mã SKU</label>
+          <label className="form-label">Mã SP (SKU)</label>
           <input
             type="text"
             value={formData.sku}
             onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
             className="form-input"
             placeholder="Nhập mã SKU"
+          />
+        </div>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+          <label className="form-label">Tên mặt hàng</label>
+          <input
+            type="text"
+            value={formData.productName}
+            onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
+            className="form-input"
+            placeholder="Nhập tên mặt hàng"
           />
         </div>
         <div className="form-group">
@@ -63,34 +88,79 @@ function ProductForm({ onSubmit, onCancel }) {
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Giá (VNĐ)</label>
+          <label className="form-label">Tồn kho bán</label>
           <input
             type="number"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            value={formData.warehouseStock}
+            onChange={(e) => setFormData({ ...formData, warehouseStock: e.target.value })}
             className="form-input"
             placeholder="0"
             min="0"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Danh mục</label>
+          <label className="form-label">Tổng nhập mới</label>
           <input
-            type="text"
-            value={formData.category}
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            type="number"
+            value={formData.newStock}
+            onChange={(e) => setFormData({ ...formData, newStock: e.target.value })}
             className="form-input"
-            placeholder="Nhập danh mục"
+            placeholder="0"
+            min="0"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Tồn kho tối thiểu</label>
+          <label className="form-label">Tổng đã bán</label>
           <input
             type="number"
-            value={formData.minStock}
-            onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+            value={formData.soldStock}
+            onChange={(e) => setFormData({ ...formData, soldStock: e.target.value })}
             className="form-input"
-            placeholder="5"
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Hong mất</label>
+          <input
+            type="number"
+            value={formData.damagedStock}
+            onChange={(e) => setFormData({ ...formData, damagedStock: e.target.value })}
+            className="form-input"
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tồn kho cuối</label>
+          <input
+            type="number"
+            value={formData.endingStock}
+            onChange={(e) => setFormData({ ...formData, endingStock: e.target.value })}
+            className="form-input"
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Cost (VNĐ)</label>
+          <input
+            type="number"
+            value={formData.cost}
+            onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+            className="form-input"
+            placeholder="0"
+            min="0"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Giá niêm yết (VNĐ)</label>
+          <input
+            type="number"
+            value={formData.retailPrice}
+            onChange={(e) => setFormData({ ...formData, retailPrice: e.target.value })}
+            className="form-input"
+            placeholder="0"
             min="0"
           />
         </div>

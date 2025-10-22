@@ -4,10 +4,16 @@ function TransactionForm({ products, formData, onChange, onSubmit }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter(p => {
+  const name = p.name || p.productName || ""; // tránh undefined
+  const sku = p.sku || "";
+  const term = searchTerm?.toLowerCase() || "";
+
+  return (
+    name.toLowerCase().includes(term) ||
+    sku.toLowerCase().includes(term)
   );
+  });
 
   const handleSelectProduct = (product) => {
     setSearchTerm(product.name);

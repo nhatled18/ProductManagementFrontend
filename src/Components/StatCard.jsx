@@ -1,6 +1,4 @@
 // components/StatCard.jsx
-import React from 'react';
-
 function StatCard({ title, value, icon, color }) {
   return (
     <div className="stat-card">

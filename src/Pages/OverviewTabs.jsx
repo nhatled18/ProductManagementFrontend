@@ -48,7 +48,7 @@ function OverviewTab({ products, transactions }) {
         <div className="stat-card">
           <div className="stat-header">
             <div className="stat-info">
-              <h3>Số Lượng Danh Mục</h3>
+              <h3>Tổng số vật dụng</h3>
               <p>{totalCategories}</p>
             </div>
             <div className="stat-icon yellow">🏷️</div>

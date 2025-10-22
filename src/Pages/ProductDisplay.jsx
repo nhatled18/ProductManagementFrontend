@@ -8,12 +8,19 @@ function ProductDisplay({ products }) {
   const categories = ['all', ...new Set(products.map(p => p.category))];
 
   const filteredProducts = products
-    .filter(p => 
-      (selectedCategory === 'all' || p.category === selectedCategory) &&
-      (p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    .filter(p => p.quantity > 0);
+    .filter(p => {
+    const name = p.name || p.productName || ""; // fallback để tránh undefined
+    const sku = p.sku || "";
+    const category = p.category || "";
+    const term = searchTerm?.toLowerCase() || "";
+
+    return (
+      (selectedCategory === 'all' || category === selectedCategory) &&
+      (name.toLowerCase().includes(term) || sku.toLowerCase().includes(term))
+    );
+  })
+  .filter(p => p.quantity > 0);
+
 
   // Random colors for product cards
   const cardColors = [

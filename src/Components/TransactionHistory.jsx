@@ -1,6 +1,4 @@
 // components/TransactionHistory.jsx
-import React from 'react';
-
 function TransactionHistory({ transactions, products }) {
   const getProductName = (productId) => {
     const product = products.find(p => p.id === productId);

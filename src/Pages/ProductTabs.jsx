@@ -13,10 +13,13 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+  const name = p.name || p.productName || "";  // fallback tránh undefined
+  const sku = p.sku || "";
+  const term = searchTerm?.toLowerCase() || "";
+  return name.toLowerCase().includes(term) || sku.toLowerCase().includes(term);
+  });
+
 
   const handleAddProduct = (newProduct) => {
     const product = {

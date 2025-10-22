@@ -3,19 +3,84 @@ import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import "../assets/styles/Dashboard.css";
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
+import ProductDisplay from './ProductDisplay';
 import TransactionTab from './TransactionTab';
-import ProductDisplay from './ProductDisplay'; 
 import HistoryTab from './HistoryTab';
 
 function DashboardPage({ currentUser, onLogout }) {
   const location = useLocation();
   
   const [products, setProducts] = useState([
-    { id: 1, name: 'Laptop Dell XPS 13', sku: 'LAP001', quantity: 25, price: 25000000, category: 'Electronics', minStock: 5 },
-    { id: 2, name: 'iPhone 15 Pro', sku: 'PHN001', quantity: 40, price: 28000000, category: 'Electronics', minStock: 10 },
-    { id: 3, name: 'Samsung Galaxy S24', sku: 'PHN002', quantity: 30, price: 22000000, category: 'Electronics', minStock: 10 },
-    { id: 4, name: 'iPad Air M2', sku: 'TAB001', quantity: 15, price: 18000000, category: 'Electronics', minStock: 5 },
-    { id: 5, name: 'AirPods Pro 2', sku: 'AUD001', quantity: 60, price: 6000000, category: 'Accessories', minStock: 20 }
+    { 
+      id: 1, 
+      group: 'HH S8 T1',
+      sku: 'A', 
+      productName: 'Lucy',
+      quantity: 1,
+      warehouseStock: 0,
+      newStock: 0,
+      soldStock: 0,
+      damagedStock: 0,
+      endingStock: 3,
+      cost: 0,
+      retailPrice: 30000
+    },
+    { 
+      id: 2, 
+      group: 'HH S8 T2',
+      sku: 'B', 
+      productName: 'Mira',
+      quantity: 6,
+      warehouseStock: 0,
+      newStock: 0,
+      soldStock: 0,
+      damagedStock: 0,
+      endingStock: 3,
+      cost: 0,
+      retailPrice: 30000
+    },
+    { 
+      id: 3, 
+      group: 'HH S8 T3',
+      sku: 'C', 
+      productName: 'Lisanna',
+      quantity: 8,
+      warehouseStock: 0,
+      newStock: 0,
+      soldStock: 0,
+      damagedStock: 0,
+      endingStock: 3,
+      cost: 0,
+      retailPrice: 30000
+    },
+    { 
+      id: 4, 
+      group: 'HH S8 T4',
+      sku: 'D', 
+      productName: 'Natsu',
+      quantity: 3,
+      warehouseStock: 0,
+      newStock: 0,
+      soldStock: 0,
+      damagedStock: 0,
+      endingStock: 3,
+      cost: 0,
+      retailPrice: 30000
+    },
+    { 
+      id: 5, 
+      group: 'HH S8 T6',
+      sku: 'E', 
+      productName: 'Wendy',
+      quantity: 3,
+      warehouseStock: 0,
+      newStock: 0,
+      soldStock: 0,
+      damagedStock: 0,
+      endingStock: 3,
+      cost: 0,
+      retailPrice: 30000
+    }
   ]);
   
   const [transactions, setTransactions] = useState([
@@ -24,7 +89,7 @@ function DashboardPage({ currentUser, onLogout }) {
     { id: 3, productId: 3, type: 'export', quantity: 3, date: '2025-10-17', note: 'Xuất hàng cho đơn hàng #1002' }
   ]);
 
-  const [historyLogs, setHistoryLogs] = useState([]);
+  const [historyLogs, setHistoryLogs] = useState([])
 
   const addHistoryLog = (action, productName, productSku, details) => {
     const newLog = {
