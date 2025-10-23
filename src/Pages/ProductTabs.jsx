@@ -1,5 +1,4 @@
-// pages/ProductsTab.jsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { productService } from '../Services/ProductServices';
 import { transactionService } from "../Services/TransactionServices";
@@ -9,6 +8,7 @@ import "../assets/styles/Common.css";
 import SearchBox from '../Components/SearchBox';
 import ProductForm from '../Components/ProductForm';
 import ProductTable from '../Components/ProductTable';
+import Pagination from '../Components/Pagination';  // ← Import Pagination
 
 function ProductsTab({ 
   products, 
@@ -25,8 +25,11 @@ function ProductsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);  // ← State cho pagination
+  const itemsPerPage = 10;  // ← Số item mỗi trang
   const fileInputRef = useRef(null);
 
+  // Lọc sản phẩm theo search
   const filteredProducts = products.filter(p => {
     const name = p.productName || "";
     const sku = p.sku || "";
@@ -36,6 +39,16 @@ function ProductsTab({
            sku.toLowerCase().includes(term) || 
            group.toLowerCase().includes(term);
   });
+
+  // ← Tính toán pagination
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+
+  // ← Reset về trang 1 khi search thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Thêm sản phẩm mới với API
   const handleAddProduct = async (newProduct) => {
@@ -122,139 +135,143 @@ function ProductsTab({
 
   // Import Excel với API
   const handleFileChange = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const fileName = file.name.toLowerCase();
-  if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
-    alert('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
-    return;
-  }
-
-  setImporting(true);
-
-  try {
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-    // Validate và transform data
-    const importedProducts = [];
-    const errors = [];
-
-    jsonData.forEach((row, index) => {
-      try {
-        if (!row['Tên mặt hàng'] || !row['SKU']) {
-          errors.push(`Dòng ${index + 2}: Thiếu tên mặt hàng hoặc SKU`);
-          return;
-        }
-
-        const product = {
-          group: row['Nhóm'] ? String(row['Nhóm']).trim() : '',
-          sku: String(row['SKU']).trim(),
-          productName: String(row['Tên mặt hàng']).trim(),
-          quantity: row['Số lượng'] ? Number(row['Số lượng']) : 0,
-          displayStock: row['Tồn kho hiển thị'] ? Number(row['Tồn kho hiển thị']) : 0,
-          warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
-          newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
-          soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
-          damagedStock: row['Hong mất'] ? Number(row['Hong mất']) : 0,
-          endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
-          cost: row['Cost'] ? Number(row['Cost']) : 0,
-          retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
-        };
-
-        if (isNaN(product.quantity) || product.quantity < 0) {
-          errors.push(`Dòng ${index + 2}: Số lượng không hợp lệ`);
-          return;
-        }
-        if (isNaN(product.cost) || product.cost < 0) {
-          errors.push(`Dòng ${index + 2}: Cost không hợp lệ`);
-          return;
-        }
-        if (isNaN(product.retailPrice) || product.retailPrice < 0) {
-          errors.push(`Dòng ${index + 2}: Giá niêm yết không hợp lệ`);
-          return;
-        }
-
-        const isDuplicate = products.some(p => p.sku === product.sku) ||
-          importedProducts.some(p => p.sku === product.sku);
-        if (isDuplicate) {
-          errors.push(`Dòng ${index + 2}: SKU "${product.sku}" đã tồn tại`);
-          return;
-        }
-
-        importedProducts.push(product);
-      } catch (error) {
-        errors.push(`Dòng ${index + 2}: Lỗi xử lý dữ liệu - ${error.message}`);
-      }
-    });
-
-    // Hiển thị lỗi ban đầu nếu có
-    if (errors.length > 0) {
-      const errorMessage = `Có ${errors.length} lỗi khi import:\n\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... và ${errors.length - 5} lỗi khác` : ''}`;
-      alert(errorMessage);
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      alert('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
+      return;
     }
 
-    // Thực hiện import nếu có dữ liệu hợp lệ
-    if (importedProducts.length > 0) {
-      if (confirm(`Tìm thấy ${importedProducts.length} sản phẩm hợp lệ. Bạn có muốn import không?`)) {
+    setImporting(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      // Validate và transform data
+      const importedProducts = [];
+      const errors = [];
+
+      jsonData.forEach((row, index) => {
         try {
-          // Gửi tất cả request song song nhưng xử lý lỗi riêng từng cái
-          const importPromises = importedProducts.map(product =>
-            productService.create(product)
-          );
-
-          const results = await Promise.allSettled(importPromises);
-
-          const success = results.filter(r => r.status === 'fulfilled');
-          const failed = results.filter(r => r.status === 'rejected');
-
-          // Ghi log nếu có lỗi chi tiết
-          if (failed.length > 0) {
-            console.warn("Danh sách sản phẩm import lỗi:");
-            failed.forEach((f, i) => {
-              console.warn(`❌ Lỗi ${i + 1}:`, f.reason?.response?.data || f.reason?.message);
-            });
+          if (!row['Tên mặt hàng'] || !row['SKU']) {
+            errors.push(`Dòng ${index + 2}: Thiếu tên mặt hàng hoặc SKU`);
+            return;
           }
 
-          // Tạo transaction cho các sản phẩm thành công
-          const transactionPromises = success.map(s =>
-            transactionService.create({
-              productId: s.value.data.id,
-              type: 'import',
-              quantity: s.value.data.quantity,
-              note: `Import từ Excel - Tồn kho ban đầu: ${s.value.data.quantity}`
-            })
-          );
+          const product = {
+            group: row['Nhóm'] ? String(row['Nhóm']).trim() : '',
+            sku: String(row['SKU']).trim(),
+            productName: String(row['Tên mặt hàng']).trim(),
+            quantity: row['Số lượng'] ? Number(row['Số lượng']) : 0,
+            displayStock: row['Tồn kho hiển thị'] ? Number(row['Tồn kho hiển thị']) : 0,
+            warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
+            newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
+            soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
+            damagedStock: row['Hong mất'] ? Number(row['Hong mất']) : 0,
+            endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
+            cost: row['Cost'] ? Number(row['Cost']) : 0,
+            retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
+          };
 
-          await Promise.allSettled(transactionPromises);
-
-          // Refresh lại dữ liệu
-          if (onRefreshData) {
-            await onRefreshData();
+          if (isNaN(product.quantity) || product.quantity < 0) {
+            errors.push(`Dòng ${index + 2}: Số lượng không hợp lệ`);
+            return;
+          }
+          if (isNaN(product.cost) || product.cost < 0) {
+            errors.push(`Dòng ${index + 2}: Cost không hợp lệ`);
+            return;
+          }
+          if (isNaN(product.retailPrice) || product.retailPrice < 0) {
+            errors.push(`Dòng ${index + 2}: Giá niêm yết không hợp lệ`);
+            return;
           }
 
-          alert(`✅ Import hoàn tất!\n\nThành công: ${success.length}\nLỗi: ${failed.length}`);
+          const isDuplicate = products.some(p => p.sku === product.sku) ||
+            importedProducts.some(p => p.sku === product.sku);
+          if (isDuplicate) {
+            errors.push(`Dòng ${index + 2}: SKU "${product.sku}" đã tồn tại`);
+            return;
+          }
+
+          importedProducts.push(product);
         } catch (error) {
-          console.error('Error importing products:', error);
-          alert('Có lỗi khi import sản phẩm. Vui lòng thử lại!');
+          errors.push(`Dòng ${index + 2}: Lỗi xử lý dữ liệu - ${error.message}`);
         }
-      }
-    } else if (errors.length === 0) {
-      alert('Không tìm thấy dữ liệu hợp lệ trong file Excel');
-    }
+      });
 
-  } catch (error) {
-    console.error('Error importing file:', error);
-    alert('Có lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
-  } finally {
-    setImporting(false);
-    e.target.value = '';
-  }
-};
+      // Hiển thị lỗi ban đầu nếu có
+      if (errors.length > 0) {
+        const errorMessage = `Có ${errors.length} lỗi khi import:\n\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... và ${errors.length - 5} lỗi khác` : ''}`;
+        alert(errorMessage);
+      }
+
+      // Thực hiện import nếu có dữ liệu hợp lệ
+      if (importedProducts.length > 0) {
+        if (confirm(`Tìm thấy ${importedProducts.length} sản phẩm hợp lệ. Bạn có muốn import không?`)) {
+          try {
+            // Gửi tất cả request song song nhưng xử lý lỗi riêng từng cái
+            const importPromises = importedProducts.map(product =>
+              productService.create(product)
+            );
+
+            const results = await Promise.allSettled(importPromises);
+
+            const success = results.filter(r => r.status === 'fulfilled');
+            const failed = results.filter(r => r.status === 'rejected');
+
+            // Ghi log nếu có lỗi chi tiết
+            if (failed.length > 0) {
+              console.warn("Danh sách sản phẩm import lỗi:");
+              failed.forEach((f, i) => {
+                console.warn(`❌ Lỗi ${i + 1}:`, f.reason?.response?.data || f.reason?.message);
+              });
+            }
+
+            // Tạo transaction cho các sản phẩm thành công
+            const transactionPromises = success.map(s =>
+              transactionService.create({
+                productId: s.value.data.id,
+                type: 'import',
+                quantity: s.value.data.quantity,
+                note: `Import từ Excel - Tồn kho ban đầu: ${s.value.data.quantity}`
+              })
+            );
+
+            await Promise.allSettled(transactionPromises);
+
+            // Refresh lại dữ liệu
+            if (onRefreshData) {
+              await onRefreshData();
+            }
+
+            // ← Reset về trang 1 sau khi import
+            setCurrentPage(1);
+
+            alert(`✅ Import hoàn tất!\n\nThành công: ${success.length}\nLỗi: ${failed.length}`);
+          } catch (error) {
+            console.error('Error importing products:', error);
+            alert('Có lỗi khi import sản phẩm. Vui lòng thử lại!');
+          }
+        }
+      } else if (errors.length === 0) {
+        alert('Không tìm thấy dữ liệu hợp lệ trong file Excel');
+      }
+
+    } catch (error) {
+      console.error('Error importing file:', error);
+      alert('Có lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div>
       <div className="card">
@@ -296,10 +313,20 @@ function ProductsTab({
           />
         )}
 
+        {/* ← ĐÃ THAY ĐỔI: Dùng currentProducts thay vì filteredProducts */}
         <ProductTable 
-          products={filteredProducts}
+          products={currentProducts}
           onUpdate={handleUpdateProduct}
           onDelete={handleDeleteProduct}
+        />
+
+        {/* ← THÊM MỚI: Component Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={itemsPerPage}
+          totalItems={filteredProducts.length}
         />
       </div>
     </div>
