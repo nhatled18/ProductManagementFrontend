@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
-import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Link, useLocation } from 'react-router-dom';
+
+// Import Services
+import { productService } from '../Services/ProductServices';
+import { transactionService } from '../Services/TransactionServices';
+import { historyService } from '../Services/HistoryServices';
+
+// Import Styles
 import "../assets/styles/Dashboard.css";
+
+// Import Components
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
 import ProductDisplay from './ProductDisplay';
@@ -10,122 +19,171 @@ import HistoryTab from './HistoryTab';
 function DashboardPage({ currentUser, onLogout }) {
   const location = useLocation();
   
-  const [products, setProducts] = useState([
-    { 
-      id: 1, 
-      group: 'HH S8 T1',
-      sku: 'A', 
-      productName: 'Lucy',
-      quantity: 1,
-      warehouseStock: 0,
-      newStock: 0,
-      soldStock: 0,
-      damagedStock: 0,
-      endingStock: 3,
-      cost: 0,
-      retailPrice: 30000
-    },
-    { 
-      id: 2, 
-      group: 'HH S8 T2',
-      sku: 'B', 
-      productName: 'Mira',
-      quantity: 6,
-      warehouseStock: 0,
-      newStock: 0,
-      soldStock: 0,
-      damagedStock: 0,
-      endingStock: 3,
-      cost: 0,
-      retailPrice: 30000
-    },
-    { 
-      id: 3, 
-      group: 'HH S8 T3',
-      sku: 'C', 
-      productName: 'Lisanna',
-      quantity: 8,
-      warehouseStock: 0,
-      newStock: 0,
-      soldStock: 0,
-      damagedStock: 0,
-      endingStock: 3,
-      cost: 0,
-      retailPrice: 30000
-    },
-    { 
-      id: 4, 
-      group: 'HH S8 T4',
-      sku: 'D', 
-      productName: 'Natsu',
-      quantity: 3,
-      warehouseStock: 0,
-      newStock: 0,
-      soldStock: 0,
-      damagedStock: 0,
-      endingStock: 3,
-      cost: 0,
-      retailPrice: 30000
-    },
-    { 
-      id: 5, 
-      group: 'HH S8 T6',
-      sku: 'E', 
-      productName: 'Wendy',
-      quantity: 3,
-      warehouseStock: 0,
-      newStock: 0,
-      soldStock: 0,
-      damagedStock: 0,
-      endingStock: 3,
-      cost: 0,
-      retailPrice: 30000
+  // State management
+  const [products, setProducts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [historyLogs, setHistoryLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch all data khi component mount
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  // Hàm fetch tất cả data
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch data song song
+      const [productsRes, historyRes, transactionsRes] = await Promise.all([
+        productService.getAll(),
+        historyService.getAll(),
+        transactionService.getAll()
+      ]);
+
+      setProducts(productsRes.data || []);
+      setHistoryLogs(historyRes.data || []);
+      setTransactions(transactionsRes.data || []);
+
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError('Không thể tải dữ liệu. Vui lòng thử lại!');
+    } finally {
+      setLoading(false);
     }
-  ]);
-  
-  const [transactions, setTransactions] = useState([
-    { id: 1, productId: 1, type: 'import', quantity: 10, date: '2025-10-15', note: 'Nhập hàng từ nhà cung cấp A' },
-    { id: 2, productId: 2, type: 'export', quantity: 5, date: '2025-10-16', note: 'Xuất hàng cho đơn hàng #1001' },
-    { id: 3, productId: 3, type: 'export', quantity: 3, date: '2025-10-17', note: 'Xuất hàng cho đơn hàng #1002' }
-  ]);
-
-  const [historyLogs, setHistoryLogs] = useState([])
-
-  const addHistoryLog = (action, productName, productSku, details) => {
-    const newLog = {
-      id: Date.now(),
-      action: action,
-      productName: productName,
-      productSku: productSku,
-      details: details,
-      user: currentUser,
-      timestamp: new Date().toISOString()
-    };
-    setHistoryLogs([...historyLogs, newLog]);
   };
 
-  const handleAddProduct = (product) => {
-    setProducts([...products, product]);
-    addHistoryLog('add', product.productName, product.sku, 
-      `Thêm sản phẩm mới với số lượng ${product.quantity}, cost ${product.cost.toLocaleString('vi-VN')}₫, giá niêm yết ${product.retailPrice.toLocaleString('vi-VN')}₫`
+  // Refresh riêng từng loại data
+  const refreshProducts = async () => {
+    try {
+      const response = await productService.getAll();
+      setProducts(response.data || []);
+    } catch (error) {
+      console.error('Error refreshing products:', error);
+    }
+  };
+
+  const refreshHistory = async () => {
+    try {
+      const response = await historyService.getAll();
+      setHistoryLogs(response.data || []);
+    } catch (error) {
+      console.error('Error refreshing history:', error);
+    }
+  };
+
+  const refreshTransactions = async () => {
+    try {
+      const response = await transactionService.getAll();
+      setTransactions(response.data || []);
+    } catch (error) {
+      console.error('Error refreshing transactions:', error);
+    }
+  };
+
+  // Handler khi add product (sync với API)
+  const handleAddProduct = async (product) => {
+    try {
+      const response = await productService.create(product);
+      setProducts([...products, response.data]);
+      
+      // Refresh history
+      await refreshHistory();
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      throw error;
+    }
+  };
+
+  // Handler khi update product (sync với API)
+  const handleUpdateProduct = async (id, updatedProduct) => {
+    try {
+      const response = await productService.update(id, updatedProduct);
+      setProducts(products.map(p => p.id === id ? response.data : p));
+      
+      // Refresh history
+      await refreshHistory();
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
+    }
+  };
+
+  // Handler khi delete product (sync với API)
+  const handleDeleteProduct = async (id) => {
+    try {
+      await productService.delete(id);
+      setProducts(products.filter(p => p.id !== id));
+      
+      // Refresh history
+      await refreshHistory();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
+    }
+  };
+
+  // Handler khi có transaction mới
+  const handleTransactionComplete = async () => {
+    await Promise.all([
+      refreshTransactions(),
+      refreshProducts(),
+      refreshHistory()
+    ]);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px',
+        color: '#6b7280'
+      }}>
+        <div>Đang tải dữ liệu...</div>
+      </div>
     );
-  };
+  }
 
-  const handleUpdateProduct = (id, updatedProduct) => {
-    const oldProduct = products.find(p => p.id === id);
-    setProducts(products.map(p => p.id === id ? updatedProduct : p));
-    addHistoryLog('update', updatedProduct.productName, updatedProduct.sku,
-      `Cập nhật thông tin sản phẩm từ số lượng ${oldProduct.quantity} thành ${updatedProduct.quantity}`
+  // Error state
+  if (error) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        gap: '16px'
+      }}>
+        <div style={{ color: '#ef4444', fontSize: '18px' }}>{error}</div>
+        <button 
+          onClick={fetchAllData}
+          style={{
+            padding: '10px 20px',
+            fontSize: '16px',
+            backgroundColor: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          Thử lại
+        </button>
+      </div>
     );
-  };
-
-  const handleDeleteProduct = (id) => {
-    const product = products.find(p => p.id === id);
-    setProducts(products.filter(p => p.id !== id));
-    addHistoryLog('delete', product.productName, product.sku,
-      `Xóa sản phẩm khỏi hệ thống`
-    );
-  };
+  }
 
   return (
     <div className="dashboard-layout">
@@ -153,56 +211,82 @@ function DashboardPage({ currentUser, onLogout }) {
       <div className="dashboard-new">
         <div className="dashboard-content">
           <Routes>
-            <Route index element={<OverviewTab products={products} transactions={transactions} />} />
+            <Route 
+              index 
+              element={
+                <OverviewTab 
+                  products={products} 
+                  transactions={transactions}
+                />
+              } 
+            />
             
-            <Route path="products" element={
-              <ProductsTab 
-                products={products} 
-                setProducts={setProducts}
-                transactions={transactions}
-                setTransactions={setTransactions}
-                historyLogs={historyLogs}
-                setHistoryLogs={setHistoryLogs}
-                onAddProduct={handleAddProduct}
-                onUpdateProduct={handleUpdateProduct}
-                onDeleteProduct={handleDeleteProduct}
-              />
-            } />
+            <Route 
+              path="products" 
+              element={
+                <ProductsTab 
+                  products={products} 
+                  setProducts={setProducts}
+                  transactions={transactions}
+                  setTransactions={setTransactions}
+                  historyLogs={historyLogs}
+                  setHistoryLogs={setHistoryLogs}
+                  onAddProduct={handleAddProduct}
+                  onUpdateProduct={handleUpdateProduct}
+                  onDeleteProduct={handleDeleteProduct}
+                  onRefreshData={fetchAllData}
+                />
+              } 
+            />
             
-            <Route path="import" element={
-              <TransactionTab
-                products={products}
-                setProducts={setProducts}
-                transactions={transactions}
-                setTransactions={setTransactions}
-                defaultType="import"
-                historyLogs={historyLogs}
-                setHistoryLogs={setHistoryLogs}
-              />
-            } />
+            <Route 
+              path="import" 
+              element={
+                <TransactionTab
+                  products={products}
+                  setProducts={setProducts}
+                  transactions={transactions}
+                  setTransactions={setTransactions}
+                  defaultType="import"
+                  historyLogs={historyLogs}
+                  setHistoryLogs={setHistoryLogs}
+                  onTransactionComplete={handleTransactionComplete}
+                />
+              } 
+            />
             
-            <Route path="export" element={
-              <TransactionTab
-                products={products}
-                setProducts={setProducts}
-                transactions={transactions}
-                setTransactions={setTransactions}
-                defaultType="export"
-                historyLogs={historyLogs}
-                setHistoryLogs={setHistoryLogs}
-              />
-            } />
+            <Route 
+              path="export" 
+              element={
+                <TransactionTab
+                  products={products}
+                  setProducts={setProducts}
+                  transactions={transactions}
+                  setTransactions={setTransactions}
+                  defaultType="export"
+                  historyLogs={historyLogs}
+                  setHistoryLogs={setHistoryLogs}
+                  onTransactionComplete={handleTransactionComplete}
+                />
+              } 
+            />
             
-            <Route path="display" element={
-              <ProductDisplay products={products} />
-            } />
+            <Route 
+              path="display" 
+              element={
+                <ProductDisplay products={products} />
+              } 
+            />
             
-            <Route path="history" element={
-              <HistoryTab 
-                historyLogs={historyLogs} 
-                currentUser={currentUser}
-              />
-            } />
+            <Route 
+              path="history" 
+              element={
+                <HistoryTab 
+                  historyLogs={historyLogs} 
+                  currentUser={currentUser}
+                />
+              } 
+            />
           </Routes>
         </div>
       </div>

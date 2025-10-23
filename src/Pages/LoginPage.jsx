@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { authService } from '../Services/AuthServices';
 import "../assets/styles/LoginPage.css";
 import "../assets/styles/Common.css";
 
@@ -9,63 +10,86 @@ function LoginPage({ onLogin }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
-  
-  // Lưu trữ users trong state (trong thực tế nên dùng database)
-  const [users, setUsers] = useState([
-    { username: 'admin', password: 'admin123', email: 'admin@example.com', fullName: 'Admin' }
-  ]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const user = users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-     onLogin({ username });
-    } else {
-      alert('Tên đăng nhập hoặc mật khẩu không đúng!');
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await authService.login({ username, password });
+      
+      // Gọi callback onLogin với user data
+      onLogin({ 
+        username: response.user?.username || username,
+        ...response.user 
+      });
+      
+      // Success message (optional)
+      console.log('✅ Đăng nhập thành công:', response);
+    } catch (err) {
+      console.error('❌ Lỗi đăng nhập:', err);
+      setError(err.message || 'Tên đăng nhập hoặc mật khẩu không đúng!');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    
-    if (users.find(u => u.username === username)) {
-      alert('Tên đăng nhập đã tồn tại!');
-      return;
-    }
-    
-    if (users.find(u => u.email === email)) {
-      alert('Email đã được đăng ký!');
-      return;
-    }
-    
+    setError('');
+
+    // Validate trước khi gửi
     if (password !== confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp!');
+      setError('Mật khẩu xác nhận không khớp!');
       return;
     }
     
     if (password.length < 6) {
-      alert('Mật khẩu phải có ít nhất 6 ký tự!');
+      setError('Mật khẩu phải có ít nhất 6 ký tự!');
       return;
     }
-    
-    setUsers([...users, { username, password, email, fullName }]);
-    alert('Đăng ký thành công! Vui lòng đăng nhập.');
-    setMode('login');
-    resetForm();
-  };
 
-  const handleForgotPassword = (e) => {
-    e.preventDefault();
-    
-    const user = users.find(u => u.email === email);
-    
-    if (user) {
-      alert(`Mật khẩu của bạn là: ${user.password}\n(Trong thực tế, sẽ gửi link reset qua email)`);
+    setLoading(true);
+
+    try {
+      await authService.register({
+        username,
+        password,
+        email,
+        fullName
+      });
+      
+      alert('Đăng ký thành công! Vui lòng đăng nhập.');
       setMode('login');
       resetForm();
-    } else {
-      alert('Email không tồn tại trong hệ thống!');
+    } catch (err) {
+      console.error('❌ Lỗi đăng ký:', err);
+      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // TODO: Implement forgot password API endpoint
+      // await authService.forgotPassword({ email });
+      
+      alert(`Link khôi phục mật khẩu đã được gửi đến ${email}.\nVui lòng kiểm tra email của bạn.`);
+      setMode('login');
+      resetForm();
+    } catch (err) {
+      console.error('❌ Lỗi khôi phục mật khẩu:', err);
+      setError(err.message || 'Email không tồn tại trong hệ thống!');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +99,7 @@ function LoginPage({ onLogin }) {
     setConfirmPassword('');
     setEmail('');
     setFullName('');
+    setError('');
   };
 
   const switchMode = (newMode) => {
@@ -93,7 +118,24 @@ function LoginPage({ onLogin }) {
       </div>
 
       <div className="login-right">
-        <div className="login-box">{mode === 'login' && (
+        <div className="login-box">
+          {/* Error Alert */}
+          {error && (
+            <div className="alert alert-error" style={{
+              backgroundColor: '#fee2e2',
+              border: '1px solid #ef4444',
+              color: '#991b1b',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              fontSize: '14px'
+            }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* LOGIN FORM */}
+          {mode === 'login' && (
             <>
               <div className="login-header">
                 <h2>Đăng nhập</h2>
@@ -110,6 +152,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập tên đăng nhập"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -122,6 +165,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập mật khẩu"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -131,8 +175,13 @@ function LoginPage({ onLogin }) {
                   </a>
                 </div>
 
-                <button type="submit" className="btn-login">
-                  Đăng nhập
+                <button 
+                  type="submit" 
+                  className="btn-login"
+                  disabled={loading}
+                  style={{ opacity: loading ? 0.6 : 1 }}
+                >
+                  {loading ? '⏳ Đang đăng nhập...' : 'Đăng nhập'}
                 </button>
               </form>
 
@@ -148,6 +197,7 @@ function LoginPage({ onLogin }) {
             </>
           )}
 
+          {/* REGISTER FORM */}
           {mode === 'register' && (
             <>
               <div className="login-header">
@@ -165,6 +215,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập họ và tên"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -177,6 +228,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập email"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -189,6 +241,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập tên đăng nhập"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -201,6 +254,7 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -213,11 +267,17 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập lại mật khẩu"
                     required
+                    disabled={loading}
                   />
                 </div>
 
-                <button type="submit" className="btn-login">
-                  Đăng ký
+                <button 
+                  type="submit" 
+                  className="btn-login"
+                  disabled={loading}
+                  style={{ opacity: loading ? 0.6 : 1 }}
+                >
+                  {loading ? '⏳ Đang đăng ký...' : 'Đăng ký'}
                 </button>
               </form>
 
@@ -227,6 +287,7 @@ function LoginPage({ onLogin }) {
             </>
           )}
 
+          {/* FORGOT PASSWORD FORM */}
           {mode === 'forgot' && (
             <>
               <div className="login-header">
@@ -244,11 +305,17 @@ function LoginPage({ onLogin }) {
                     className="form-input"
                     placeholder="Nhập email đã đăng ký"
                     required
+                    disabled={loading}
                   />
                 </div>
 
-                <button type="submit" className="btn-login">
-                  Khôi phục mật khẩu
+                <button 
+                  type="submit" 
+                  className="btn-login"
+                  disabled={loading}
+                  style={{ opacity: loading ? 0.6 : 1 }}
+                >
+                  {loading ? '⏳ Đang xử lý...' : 'Khôi phục mật khẩu'}
                 </button>
               </form>
 

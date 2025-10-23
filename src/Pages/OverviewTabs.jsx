@@ -2,7 +2,7 @@
 import React from 'react';
 import "../assets/styles/Overview.css";
 import "../assets/styles/Common.css";
-import StatCard from '../Components/StatCard';
+// import StatCard from '../Components/StatCard';
 import LowStockAlert from '../Components/LowStockAlert';
 import RecentTransactions from '../Components/RecentTransactions';
 import { formatCurrency } from '../utils/helper';

@@ -1,13 +1,27 @@
 // pages/ProductsTab.jsx
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { productService } from '../Services/ProductServices';
+import { transactionService } from "../Services/TransactionServices";
+import { historyService } from '../Services/HistoryServices';
 import "../assets/styles/Product.css";
 import "../assets/styles/Common.css";
 import SearchBox from '../Components/SearchBox';
 import ProductForm from '../Components/ProductForm';
 import ProductTable from '../Components/ProductTable';
 
-function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onDeleteProduct, transactions, setTransactions, historyLogs, setHistoryLogs }) {
+function ProductsTab({ 
+  products, 
+  setProducts, 
+  onAddProduct, 
+  onUpdateProduct, 
+  onDeleteProduct, 
+  transactions, 
+  setTransactions, 
+  historyLogs, 
+  setHistoryLogs,
+  onRefreshData // Callback để refresh data từ Dashboard
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -23,34 +37,81 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
            group.toLowerCase().includes(term);
   });
 
-  const handleAddProduct = (newProduct) => {
-    const product = {
-      id: Math.max(...products.map(p => p.id), 0) + 1,
-      ...newProduct
-    };
-    
-    if (onAddProduct) {
-      onAddProduct(product);
-    } else {
-      setProducts([...products, product]);
-    }
-    setShowAddProduct(false);
-  };
-
-  const handleUpdateProduct = (id, updatedProduct) => {
-    if (onUpdateProduct) {
-      onUpdateProduct(id, updatedProduct);
-    } else {
-      setProducts(products.map(p => p.id === id ? updatedProduct : p));
-    }
-  };
-
-  const handleDeleteProduct = (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      if (onDeleteProduct) {
-        onDeleteProduct(id);
+  // Thêm sản phẩm mới với API
+  const handleAddProduct = async (newProduct) => {
+    try {
+      // Gọi API tạo product
+      const response = await productService.create(newProduct);
+      
+      // Update local state
+      if (onAddProduct) {
+        onAddProduct(response.data);
       } else {
-        setProducts(products.filter(p => p.id !== id));
+        setProducts([...products, response.data]);
+      }
+      
+      setShowAddProduct(false);
+      
+      // Refresh data nếu có callback
+      if (onRefreshData) {
+        await onRefreshData();
+      }
+      
+      alert('Thêm sản phẩm thành công!');
+    } catch (error) {
+      console.error('Error adding product:', error);
+      alert('Có lỗi khi thêm sản phẩm. Vui lòng thử lại!');
+    }
+  };
+
+  // Cập nhật sản phẩm với API
+  const handleUpdateProduct = async (id, updatedProduct) => {
+    try {
+      // Gọi API update
+      const response = await productService.update(id, updatedProduct);
+      
+      // Update local state
+      if (onUpdateProduct) {
+        onUpdateProduct(id, response.data);
+      } else {
+        setProducts(products.map(p => p.id === id ? response.data : p));
+      }
+      
+      // Refresh data
+      if (onRefreshData) {
+        await onRefreshData();
+      }
+      
+      alert('Cập nhật sản phẩm thành công!');
+    } catch (error) {
+      console.error('Error updating product:', error);
+      alert('Có lỗi khi cập nhật sản phẩm. Vui lòng thử lại!');
+    }
+  };
+
+  // Xóa sản phẩm với API
+  const handleDeleteProduct = async (id) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
+      try {
+        // Gọi API delete
+        await productService.delete(id);
+        
+        // Update local state
+        if (onDeleteProduct) {
+          onDeleteProduct(id);
+        } else {
+          setProducts(products.filter(p => p.id !== id));
+        }
+        
+        // Refresh data
+        if (onRefreshData) {
+          await onRefreshData();
+        }
+        
+        alert('Xóa sản phẩm thành công!');
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert('Có lỗi khi xóa sản phẩm. Vui lòng thử lại!');
       }
     }
   };
@@ -59,11 +120,11 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
     fileInputRef.current?.click();
   };
 
+  // Import Excel với API
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Kiểm tra file extension
     const fileName = file.name.toLowerCase();
     if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
       alert('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
@@ -79,23 +140,18 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-      let nextId = Math.max(...products.map(p => p.id), 0) + 1;
-
-      // Validate và transform data
+      // Validate và transform data (giữ nguyên code cũ)
       const importedProducts = [];
       const errors = [];
 
       jsonData.forEach((row, index) => {
         try {
-          // Validate required fields
           if (!row['Tên mặt hàng'] || !row['SKU']) {
             errors.push(`Dòng ${index + 2}: Thiếu tên mặt hàng hoặc SKU`);
             return;
           }
 
-          // Transform data để khớp với ProductForm
           const product = {
-            id: nextId++,
             group: row['Nhóm'] ? String(row['Nhóm']).trim() : '',
             sku: String(row['SKU']).trim(),
             productName: String(row['Tên mặt hàng']).trim(),
@@ -110,7 +166,7 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
             retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
           };
 
-          // Validate số lượng và giá
+          // Validate
           if (isNaN(product.quantity) || product.quantity < 0) {
             errors.push(`Dòng ${index + 2}: Số lượng không hợp lệ`);
             return;
@@ -126,7 +182,7 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
 
           // Kiểm tra SKU trùng
           const isDuplicate = products.some(p => p.sku === product.sku) ||
-          importedProducts.some(p => p.sku === product.sku);
+            importedProducts.some(p => p.sku === product.sku);
           if (isDuplicate) {
             errors.push(`Dòng ${index + 2}: SKU "${product.sku}" đã tồn tại`);
             return;
@@ -138,49 +194,45 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
         }
       });
 
-      // Hiển thị kết quả
+      // Hiển thị errors
       if (errors.length > 0) {
         const errorMessage = `Có ${errors.length} lỗi khi import:\n\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... và ${errors.length - 5} lỗi khác` : ''}`;
         alert(errorMessage);
       }
 
+      // Import products qua API
       if (importedProducts.length > 0) {
         if (confirm(`Tìm thấy ${importedProducts.length} sản phẩm hợp lệ. Bạn có muốn import không?`)) {
-          // Import tất cả sản phẩm cùng lúc
-          setProducts([...products, ...importedProducts]);
-          
-          // Tạo lịch sử giao dịch cho các sản phẩm được import
-          if (setTransactions && transactions) {
-            const currentDate = new Date().toLocaleString('vi-VN');
-            const newTransactions = importedProducts.map(product => ({
-              id: Math.max(...transactions.map(t => t.id), 0) + transactions.length + product.id,
-              productId: product.id,
-              type: 'import',
-              quantity: product.quantity,
-              date: currentDate,
-              note: `Import từ Excel - Tồn kho ban đầu: ${product.quantity}`
-            }));
+          try {
+            // Gọi API để import từng product
+            const importPromises = importedProducts.map(product => 
+              productService.create(product)
+            );
             
-            setTransactions([...transactions, ...newTransactions]);
-          }
-          
-          // Tạo history logs cho các sản phẩm được import
-          if (setHistoryLogs && historyLogs) {
-            const currentTimestamp = new Date().toISOString();
-            const newHistoryLogs = importedProducts.map(product => ({
-              id: Date.now() + product.id,
-              action: 'import',
-              productName: product.productName,
-              productSku: product.sku,
-              user: 'Admin',
-              details: `Import từ Excel - Thêm sản phẩm mới với số lượng ${product.quantity}, cost ${product.cost.toLocaleString('vi-VN')}₫, giá niêm yết ${product.retailPrice.toLocaleString('vi-VN')}₫`,
-              timestamp: currentTimestamp
-            }));
+            const results = await Promise.all(importPromises);
             
-            setHistoryLogs([...historyLogs, ...newHistoryLogs]);
+            // Tạo transactions cho các sản phẩm import
+            const transactionPromises = results.map(result => 
+              transactionService.create({
+                productId: result.data.id,
+                type: 'import',
+                quantity: result.data.quantity,
+                note: `Import từ Excel - Tồn kho ban đầu: ${result.data.quantity}`
+              })
+            );
+            
+            await Promise.all(transactionPromises);
+            
+            // Refresh tất cả data
+            if (onRefreshData) {
+              await onRefreshData();
+            }
+            
+            alert(`Đã import thành công ${importedProducts.length} sản phẩm!`);
+          } catch (error) {
+            console.error('Error importing products:', error);
+            alert('Có lỗi khi import sản phẩm. Vui lòng thử lại!');
           }
-          
-          alert(`Đã import thành công ${importedProducts.length} sản phẩm!`);
         }
       } else if (errors.length === 0) {
         alert('Không tìm thấy dữ liệu hợp lệ trong file Excel');
@@ -191,7 +243,6 @@ function ProductsTab({ products, setProducts, onAddProduct, onUpdateProduct, onD
       alert('Có lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
     } finally {
       setImporting(false);
-      // Reset input để có thể chọn lại cùng file
       e.target.value = '';
     }
   };
