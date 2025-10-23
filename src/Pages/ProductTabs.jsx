@@ -2,13 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { productService } from '../Services/ProductServices';
 import { transactionService } from "../Services/TransactionServices";
-import { historyService } from '../Services/HistoryServices';
+// import { historyService } from '../Services/HistoryServices';
 import "../assets/styles/Product.css";
 import "../assets/styles/Common.css";
 import SearchBox from '../Components/SearchBox';
 import ProductForm from '../Components/ProductForm';
 import ProductTable from '../Components/ProductTable';
-import Pagination from '../Components/Pagination';  // ← Import Pagination
+import Pagination from '../Components/Pagination';  
 
 function ProductsTab({ 
   products, 
@@ -25,8 +25,8 @@ function ProductsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);  // ← State cho pagination
-  const itemsPerPage = 10;  // ← Số item mỗi trang
+  const [currentPage, setCurrentPage] = useState(1);  
+  const itemsPerPage = 10; 
   const fileInputRef = useRef(null);
 
   // Lọc sản phẩm theo search
@@ -53,10 +53,10 @@ function ProductsTab({
   // Thêm sản phẩm mới với API
   const handleAddProduct = async (newProduct) => {
     try {
-      // Gọi API tạo product
+     
       const response = await productService.create(newProduct);
       
-      // Update local state
+      
       if (onAddProduct) {
         onAddProduct(response.data);
       } else {
@@ -65,7 +65,7 @@ function ProductsTab({
       
       setShowAddProduct(false);
       
-      // Refresh data nếu có callback
+     
       if (onRefreshData) {
         await onRefreshData();
       }
@@ -77,20 +77,20 @@ function ProductsTab({
     }
   };
 
-  // Cập nhật sản phẩm với API
+  
   const handleUpdateProduct = async (id, updatedProduct) => {
     try {
-      // Gọi API update
+      
       const response = await productService.update(id, updatedProduct);
       
-      // Update local state
+      
       if (onUpdateProduct) {
         onUpdateProduct(id, response.data);
       } else {
         setProducts(products.map(p => p.id === id ? response.data : p));
       }
       
-      // Refresh data
+      
       if (onRefreshData) {
         await onRefreshData();
       }
@@ -102,21 +102,21 @@ function ProductsTab({
     }
   };
 
-  // Xóa sản phẩm với API
+  
   const handleDeleteProduct = async (id) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
       try {
-        // Gọi API delete
+        
         await productService.delete(id);
         
-        // Update local state
+       
         if (onDeleteProduct) {
           onDeleteProduct(id);
         } else {
           setProducts(products.filter(p => p.id !== id));
         }
         
-        // Refresh data
+       
         if (onRefreshData) {
           await onRefreshData();
         }
@@ -205,17 +205,17 @@ function ProductsTab({
         }
       });
 
-      // Hiển thị lỗi ban đầu nếu có
+     
       if (errors.length > 0) {
         const errorMessage = `Có ${errors.length} lỗi khi import:\n\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n... và ${errors.length - 5} lỗi khác` : ''}`;
         alert(errorMessage);
       }
 
-      // Thực hiện import nếu có dữ liệu hợp lệ
+      
       if (importedProducts.length > 0) {
         if (confirm(`Tìm thấy ${importedProducts.length} sản phẩm hợp lệ. Bạn có muốn import không?`)) {
           try {
-            // Gửi tất cả request song song nhưng xử lý lỗi riêng từng cái
+            
             const importPromises = importedProducts.map(product =>
               productService.create(product)
             );
@@ -225,7 +225,7 @@ function ProductsTab({
             const success = results.filter(r => r.status === 'fulfilled');
             const failed = results.filter(r => r.status === 'rejected');
 
-            // Ghi log nếu có lỗi chi tiết
+            
             if (failed.length > 0) {
               console.warn("Danh sách sản phẩm import lỗi:");
               failed.forEach((f, i) => {
@@ -233,7 +233,7 @@ function ProductsTab({
               });
             }
 
-            // Tạo transaction cho các sản phẩm thành công
+            
             const transactionPromises = success.map(s =>
               transactionService.create({
                 productId: s.value.data.id,
@@ -245,12 +245,11 @@ function ProductsTab({
 
             await Promise.allSettled(transactionPromises);
 
-            // Refresh lại dữ liệu
+            
             if (onRefreshData) {
               await onRefreshData();
             }
-
-            // ← Reset về trang 1 sau khi import
+            
             setCurrentPage(1);
 
             alert(`✅ Import hoàn tất!\n\nThành công: ${success.length}\nLỗi: ${failed.length}`);
