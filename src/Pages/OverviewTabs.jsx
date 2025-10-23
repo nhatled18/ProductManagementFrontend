@@ -8,7 +8,7 @@ import RecentTransactions from '../Components/RecentTransactions';
 import { formatCurrency } from '../utils/helper';
 
 function OverviewTab({ products, transactions }) {
-  const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.price), 0);
+  const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.cost), 0);
   const lowStockProducts = products.filter(p => p.quantity <= p.minStock);
   const totalCategories = [...new Set(products.map(p => p.category))].length;
 
