@@ -15,10 +15,10 @@ function ProductsTab({
   onAddProduct, 
   onUpdateProduct, 
   onDeleteProduct, 
-  transactions, 
-  setTransactions, 
-  historyLogs, 
-  setHistoryLogs,
+  // transactions, 
+  // setTransactions, 
+  // historyLogs, 
+  // setHistoryLogs,
   onRefreshData
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -194,7 +194,6 @@ function ProductsTab({
     }
   };
 
-  // ========== GIỮ NGUYÊN: Original Functions ==========
   const handleAddProduct = async (newProduct) => {
     try {
       const response = await productService.create(newProduct);
@@ -384,7 +383,6 @@ function ProductsTab({
     }
   };
 
-  // ========== RENDER ==========
   return (
     <div>
       <div className="card">
@@ -565,7 +563,7 @@ function ProductsTab({
               </>
             )}
 
-            {/* ========== THÊM MỚI: Delete All Button ========== */}
+            
             <button
               className="btn-secondary"
               onClick={handleDeleteAllClick}
@@ -610,7 +608,7 @@ function ProductsTab({
           />
         </div>
 
-        {/* ========== THÊM MỚI: Active Filters Chips ========== */}
+        {/* ========== Active Filters ========== */}
         {activeFilters.length > 0 && (
           <div style={{ 
             padding: '0 20px 16px',
@@ -675,7 +673,7 @@ function ProductsTab({
           />
         )}
 
-        {/* GIỮ NGUYÊN: ProductTable */}
+        
         <ProductTable 
           products={currentProducts}
           onUpdate={handleUpdateProduct}
@@ -691,7 +689,7 @@ function ProductsTab({
         />
       </div>
 
-      {/* ========== THÊM MỚI: Delete All Confirmation Modal ========== */}
+      {/* ========== Delete All Confirmation Modal ========== */}
       {showDeleteModal && (
         <div style={{
           position: 'fixed',
@@ -705,7 +703,7 @@ function ProductsTab({
           justifyContent: 'center',
           padding: '16px'
         }}>
-          {/* Backdrop */}
+          
           <div 
             style={{
               position: 'absolute',
@@ -754,7 +752,6 @@ function ProductsTab({
               Xác nhận xóa toàn bộ sản phẩm
             </h3>
 
-            {/* Message */}
             <p style={{
               color: '#6B7280',
               textAlign: 'center',
@@ -773,7 +770,6 @@ function ProductsTab({
               </span>
             </p>
 
-            {/* Actions */}
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setShowDeleteModal(false)}
