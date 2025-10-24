@@ -25,8 +25,8 @@ function ProductsTab({
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [importing, setImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // ========== THÊM MỚI: State cho Filter & Delete All ==========
+
+  // THÊM MỚI: State cho Filter & Delete All
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [filters, setFilters] = useState({
     group: '',
@@ -293,7 +293,7 @@ function ProductsTab({
             warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
             newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
             soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
-            damagedStock: row['Hong mất'] ? Number(row['Hong mất']) : 0,
+            damagedStock: row['Hỏng mất'] ? Number(row['Hong mất']) : 0,
             endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
             cost: row['Cost'] ? Number(row['Cost']) : 0,
             retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
