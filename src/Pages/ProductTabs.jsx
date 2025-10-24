@@ -103,7 +103,7 @@ function ProductsTab({
     setCurrentPage(1);
   }, [searchTerm, filters]);
 
-  // ========== THÊM MỚI: Filter Functions ==========
+  // Filter Functions
   const groups = [...new Set(products.map(p => p.group).filter(Boolean))];
 
   const applyFilter = (type, value) => {
@@ -149,7 +149,7 @@ function ProductsTab({
     setActiveFilters([]);
   };
 
-  // ========== THÊM MỚI: Delete All Function ==========
+  //  THÊM MỚI: Delete All Functions
   const handleDeleteAllClick = () => {
     if (products.length === 0) {
       alert('Không có sản phẩm nào để xóa!');

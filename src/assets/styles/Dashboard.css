@@ -1,4 +1,4 @@
-/* Dashboard.css - Modern Design */
+/* Dashboard.css - Modern Design with Auto-Hide Sidebar */
 
 .dashboard-layout {
   display: flex;
@@ -7,26 +7,80 @@
   position: relative;
 }
 
-/* ===== SIDEBAR NAVIGATION ===== */
-.tabs-vertical {
-  width: 280px;
+/* ===== SIDEBAR TRIGGER - Vùng kích hoạt ===== */
+.sidebar-trigger {
+  position: fixed;
+  left: 0;
+  top: 80px; /* Điều chỉnh top để khớp với sidebar */
+  width: 15px;
+  height: calc(100vh - 80px); /* Điều chỉnh chiều cao */
+  z-index: 50; /* Giảm z-index để không che header */
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Icon indicator cho sidebar */
+.sidebar-trigger::after {
+  content: '☰';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: rgba(102, 126, 234, 0.7);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
   background: white;
-  padding: 30px 20px;
-  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
+  padding: 8px 4px;
+  border-radius: 4px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-trigger:hover::after {
+  opacity: 1;
+  color: rgba(102, 126, 234, 1);
+  box-shadow: 2px 0 12px rgba(102, 126, 234, 0.3);
+}
+
+/* ===== SIDEBAR NAVIGATION - AUTO HIDE ===== */
+.tabs-vertical {
+  width: 60px; /* Thu nhỏ khi ẩn - chỉ hiện icon */
+  background: white;
+  padding: 30px 10px;
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: fixed;
+  top: 80px; /* Thêm khoảng cách từ top để không che header */
+  left: 0; /* Luôn hiện một phần */
+  height: calc(100vh - 80px); /* Điều chỉnh chiều cao */
   overflow-y: auto;
+  overflow-x: hidden; /* Ẩn phần text tràn ra */
   z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mở rộng khi hover */
+.tabs-vertical:hover {
+  width: 280px;
+  padding: 30px 20px;
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Hover vào trigger cũng mở rộng sidebar */
+.sidebar-trigger:hover + .tabs-vertical {
+  width: 280px;
+  padding: 30px 20px;
+  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2);
 }
 
 .tab-vertical {
   display: flex;
   align-items: center;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 16px 12px;
   border-radius: 14px;
   text-decoration: none;
   color: #64748b;
@@ -35,6 +89,35 @@
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  white-space: nowrap;
+  justify-content: center;
+}
+
+/* Icon luôn hiện */
+.tab-vertical span:first-child {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* Text ẩn khi sidebar thu nhỏ */
+.tab-vertical span:last-child {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Hiện text khi sidebar mở rộng */
+.tabs-vertical:hover .tab-vertical,
+.sidebar-trigger:hover + .tabs-vertical .tab-vertical {
+  justify-content: flex-start;
+  padding: 16px 20px;
+}
+
+.tabs-vertical:hover .tab-vertical span:last-child,
+.sidebar-trigger:hover + .tabs-vertical .tab-vertical span:last-child {
+  opacity: 1;
+  width: auto;
 }
 
 .tab-vertical::before {
@@ -53,6 +136,7 @@
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
   color: #667eea;
   transform: translateX(4px);
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
 }
 
 .tab-vertical:hover::before {
@@ -62,7 +146,8 @@
 .tab-vertical.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  animation: slideIn 0.3s ease;
 }
 
 .tab-vertical.active::before {
@@ -71,13 +156,15 @@
   width: 100%;
 }
 
-
-
 /* ===== MAIN CONTENT AREA ===== */
 .dashboard-new {
   flex: 1;
   padding: 30px;
+  margin-left: 60px; /* Khoảng cách cho sidebar thu nhỏ */
   overflow-y: auto;
+  width: calc(100% - 60px);
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
 }
 
 .dashboard-content {
@@ -124,6 +211,7 @@
 @media (max-width: 1024px) {
   .tabs-vertical {
     width: 240px;
+    left: -240px;
     padding: 20px 15px;
   }
 
@@ -142,10 +230,16 @@
     flex-direction: column;
   }
 
+  /* Ẩn sidebar trigger trên mobile */
+  .sidebar-trigger {
+    display: none;
+  }
+
   .tabs-vertical {
     width: 100%;
     height: auto;
     position: relative;
+    left: 0; /* Hiện sidebar trên mobile */
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
@@ -179,9 +273,9 @@
 
   .dashboard-new {
     padding: 15px;
+    margin-left: 0;
   }
 
-  /* Hide scrollbar on mobile for cleaner look */
   .tabs-vertical::-webkit-scrollbar {
     height: 4px;
   }
@@ -232,7 +326,7 @@
   margin: 0;
 }
 
-/* ===== ACTIVE TAB INDICATOR ANIMATION ===== */
+/* ===== ANIMATIONS ===== */
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -242,21 +336,6 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.tab-vertical.active {
-  animation: slideIn 0.3s ease;
-}
-
-
-
-/* ===== HOVER GLOW EFFECT ===== */
-.tab-vertical:hover {
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
-}
-
-.tab-vertical.active {
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
 }
 
 /* ===== TRANSITION FOR ROUTE CHANGES ===== */

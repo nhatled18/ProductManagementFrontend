@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import "../assets/styles/Common.css";
+import "../assets/styles/Dashboard.css";
 
 // Import Services
 import { productService } from '../Services/ProductServices';
 import { transactionService } from '../Services/TransactionServices';
 import { historyService } from '../Services/HistoryServices';
-
-// Import Styles
-import "../assets/styles/Dashboard.css";
 
 // Import Components
 import OverviewTab from './OverviewTabs';
@@ -37,7 +36,6 @@ function DashboardPage({ currentUser, onLogout }) {
       setLoading(true);
       setError(null);
 
-      // Fetch data song song
       const [productsRes, historyRes, transactionsRes] = await Promise.all([
         productService.getAll(),
         historyService.getAll(),
@@ -187,27 +185,56 @@ function DashboardPage({ currentUser, onLogout }) {
 
   return (
     <div className="dashboard-layout">
+      {/* Vùng trigger để kích hoạt sidebar */}
+      <div className="sidebar-trigger"></div>
+      
+      {/* Sidebar Navigation - Auto Hide */}
       <div className="tabs-vertical">
-        <Link to="/dashboard" className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}>
-          Tổng quan
+        <Link 
+          to="/dashboard" 
+          className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}
+        >
+          <span>📊</span>
+          <span>Tổng quan</span>
         </Link>
-        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}>
-          Quản lý sản phẩm
+        <Link 
+          to="/dashboard/products" 
+          className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}
+        >
+          <span>📦</span>
+          <span>Quản lý sản phẩm</span>
         </Link>
-        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}>
-          Nhập kho
+        <Link 
+          to="/dashboard/import" 
+          className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}
+        >
+          <span>📥</span>
+          <span>Nhập kho</span>
         </Link>
-        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}>
-          Xuất kho
+        <Link 
+          to="/dashboard/export" 
+          className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}
+        >
+          <span>📤</span>
+          <span>Xuất kho</span>
         </Link>
-        <Link to="/dashboard/display" className={`tab-vertical ${location.pathname === '/dashboard/display' ? 'active' : ''}`}>
-          Trưng bày
+        <Link 
+          to="/dashboard/display" 
+          className={`tab-vertical ${location.pathname === '/dashboard/display' ? 'active' : ''}`}
+        >
+          <span>🏪</span>
+          <span>Trưng bày</span>
         </Link>
-        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}>
-          Lịch sử hoạt động
+        <Link 
+          to="/dashboard/history" 
+          className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}
+        >
+          <span>📜</span>
+          <span>Lịch sử hoạt động</span>
         </Link>
       </div>
 
+      {/* Main Content Area */}
       <div className="dashboard-new">
         <div className="dashboard-content">
           <Routes>
