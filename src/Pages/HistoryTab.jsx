@@ -47,7 +47,7 @@ function HistoryTab({ historyLogs, currentUser }) {
   };
 
   // Sắp xếp logs theo thời gian mới nhất trước
-  const sortedLogs = [...historyLogs].sort((a, b) => 
+  const sortedLogs = [...(historyLogs || [])].sort((a, b) => 
     new Date(b.timestamp) - new Date(a.timestamp)
   );
 

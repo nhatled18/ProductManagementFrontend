@@ -309,7 +309,7 @@ function DashboardPage({ currentUser, onLogout }) {
               path="history" 
               element={
                 <HistoryTab 
-                  historyLogs={historyLogs} 
+                  historyLogs={[]} 
                   currentUser={currentUser}
                 />
               } 
