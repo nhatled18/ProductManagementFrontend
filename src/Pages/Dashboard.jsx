@@ -258,6 +258,7 @@ function DashboardPage({ currentUser, onLogout }) {
                   setTransactions={setTransactions}
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
+                  currentUser={currentUser}
                   onAddProduct={handleAddProduct}
                   onUpdateProduct={handleUpdateProduct}
                   onDeleteProduct={handleDeleteProduct}
@@ -277,6 +278,7 @@ function DashboardPage({ currentUser, onLogout }) {
                   defaultType="import"
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
+                  currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
               } 
@@ -293,6 +295,7 @@ function DashboardPage({ currentUser, onLogout }) {
                   defaultType="export"
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
+                  currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
               } 
@@ -309,7 +312,7 @@ function DashboardPage({ currentUser, onLogout }) {
               path="history" 
               element={
                 <HistoryTab 
-                  historyLogs={[]} 
+                  historyLogs={historyLogs}
                   currentUser={currentUser}
                 />
               } 
