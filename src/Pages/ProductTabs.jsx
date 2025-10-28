@@ -15,10 +15,6 @@ function ProductsTab({
   onAddProduct, 
   onUpdateProduct, 
   onDeleteProduct, 
-  // transactions, 
-  // setTransactions, 
-  // historyLogs, 
-  // setHistoryLogs,
   onRefreshData
 }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,7 +22,7 @@ function ProductsTab({
   const [importing, setImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // THÊM MỚI: State cho Filter & Delete All
+  // Filter & Delete All States
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [filters, setFilters] = useState({
     group: '',
@@ -38,10 +34,50 @@ function ProductsTab({
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // Progress State
+  const [progress, setProgress] = useState({ current: 0, total: 0, message: '' });
+  
   const itemsPerPage = 10;
   const fileInputRef = useRef(null);
 
-  // ========== Lọc sản phẩm theo search VÀ filter ==========
+  // ========== BATCH PROCESSING HELPER ==========
+  const processBatch = async (items, batchSize, delayMs, processFn, progressMessage = 'Đang xử lý') => {
+    const results = [];
+    const totalBatches = Math.ceil(items.length / batchSize);
+    
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      const currentBatch = Math.floor(i / batchSize) + 1;
+      
+      setProgress({
+        current: i,
+        total: items.length,
+        message: `${progressMessage} - Batch ${currentBatch}/${totalBatches}`
+      });
+      
+      const batchResults = await Promise.allSettled(
+        batch.map(item => processFn(item))
+      );
+      
+      results.push(...batchResults);
+      
+      // Update progress after batch
+      setProgress({
+        current: Math.min(i + batch.length, items.length),
+        total: items.length,
+        message: `${progressMessage} - Batch ${currentBatch}/${totalBatches}`
+      });
+      
+      // Delay between batches (except last one)
+      if (i + batchSize < items.length) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+    
+    return results;
+  };
+
+  // ========== FILTER PRODUCTS ==========
   let filteredProducts = products.filter(p => {
     const name = p.productName || "";
     const sku = p.sku || "";
@@ -103,7 +139,7 @@ function ProductsTab({
     setCurrentPage(1);
   }, [searchTerm, filters]);
 
-  // Filter Functions
+  // ========== FILTER FUNCTIONS ==========
   const groups = [...new Set(products.map(p => p.group).filter(Boolean))];
 
   const applyFilter = (type, value) => {
@@ -149,7 +185,7 @@ function ProductsTab({
     setActiveFilters([]);
   };
 
-  //  THÊM MỚI: Delete All Functions
+  // ========== DELETE ALL FUNCTIONS ==========
   const handleDeleteAllClick = () => {
     if (products.length === 0) {
       alert('Không có sản phẩm nào để xóa!');
@@ -160,21 +196,28 @@ function ProductsTab({
 
   const handleConfirmDeleteAll = async () => {
     setIsDeleting(true);
+    setProgress({ current: 0, total: products.length, message: 'Đang chuẩn bị xóa...' });
     
     try {
-      // Xóa tất cả sản phẩm
-      const deletePromises = products.map(product =>
-        productService.delete(product.id)
+      console.log(`🗑️ Bắt đầu xóa ${products.length} sản phẩm...`);
+      
+      // Delete with batch processing: 10 items/batch, 500ms delay
+      const results = await processBatch(
+        products,
+        10,  // batch size
+        500, // delay ms
+        (product) => productService.delete(product.id),
+        'Đang xóa sản phẩm'
       );
 
-      const results = await Promise.allSettled(deletePromises);
       const success = results.filter(r => r.status === 'fulfilled');
       const failed = results.filter(r => r.status === 'rejected');
 
       if (failed.length > 0) {
-        console.warn("Danh sách sản phẩm xóa lỗi:");
+        console.warn(`❌ ${failed.length} sản phẩm xóa lỗi:`);
         failed.forEach((f, i) => {
-          console.warn(`❌ Lỗi ${i + 1}:`, f.reason?.response?.data || f.reason?.message);
+          const error = f.reason?.response?.data || f.reason?.message || 'Unknown error';
+          console.warn(`  ${i + 1}. ${error}`);
         });
       }
 
@@ -184,16 +227,19 @@ function ProductsTab({
       }
 
       setShowDeleteModal(false);
+      setProgress({ current: 0, total: 0, message: '' });
       
-      alert(`✅ Xóa hoàn tất!\n\nThành công: ${success.length}\nLỗi: ${failed.length}`);
+      alert(`✅ Xóa hoàn tất!\n\n✓ Thành công: ${success.length}\n✗ Lỗi: ${failed.length}`);
     } catch (error) {
       console.error('Error deleting products:', error);
       alert('Có lỗi khi xóa sản phẩm. Vui lòng thử lại!');
     } finally {
       setIsDeleting(false);
+      setProgress({ current: 0, total: 0, message: '' });
     }
   };
 
+  // ========== PRODUCT CRUD FUNCTIONS ==========
   const handleAddProduct = async (newProduct) => {
     try {
       const response = await productService.create(newProduct);
@@ -251,6 +297,7 @@ function ProductsTab({
     }
   };
 
+  // ========== IMPORT EXCEL FUNCTIONS ==========
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -266,6 +313,7 @@ function ProductsTab({
     }
 
     setImporting(true);
+    setProgress({ current: 0, total: 0, message: 'Đang đọc file...' });
 
     try {
       const data = await file.arrayBuffer();
@@ -293,7 +341,7 @@ function ProductsTab({
             warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
             newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
             soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
-            damagedStock: row['Hỏng mất'] ? Number(row['Hong mất']) : 0,
+            damagedStock: row['Hỏng mất'] ? Number(row['Hỏng mất']) : 0,
             endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
             cost: row['Cost'] ? Number(row['Cost']) : 0,
             retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
@@ -333,38 +381,57 @@ function ProductsTab({
       if (importedProducts.length > 0) {
         if (confirm(`Tìm thấy ${importedProducts.length} sản phẩm hợp lệ. Bạn có muốn import không?`)) {
           try {
-            const importPromises = importedProducts.map(product =>
-              productService.create(product)
+            console.log(`📥 Bắt đầu import ${importedProducts.length} sản phẩm...`);
+            
+            // Import with batch processing: 10 items/batch, 500ms delay
+            const results = await processBatch(
+              importedProducts,
+              10,
+              500,
+              (product) => productService.create(product),
+              'Đang import sản phẩm'
             );
 
-            const results = await Promise.allSettled(importPromises);
             const success = results.filter(r => r.status === 'fulfilled');
             const failed = results.filter(r => r.status === 'rejected');
 
             if (failed.length > 0) {
-              console.warn("Danh sách sản phẩm import lỗi:");
+              console.warn(`❌ ${failed.length} sản phẩm import lỗi:`);
               failed.forEach((f, i) => {
-                console.warn(`❌ Lỗi ${i + 1}:`, f.reason?.response?.data || f.reason?.message);
+                const error = f.reason?.response?.data || f.reason?.message || 'Unknown error';
+                console.warn(`  ${i + 1}. ${error}`);
               });
             }
 
-            const transactionPromises = success.map(s =>
-              transactionService.create({
-                productId: s.value.data.id,
-                type: 'import',
-                quantity: s.value.data.quantity,
-                note: `Import từ Excel - Tồn kho ban đầu: ${s.value.data.quantity}`
-              })
-            );
-
-            await Promise.allSettled(transactionPromises);
+            // Create transactions for successful imports
+            if (success.length > 0) {
+              console.log(`📝 Tạo ${success.length} transaction records...`);
+              
+              const transactionResults = await processBatch(
+                success,
+                10,
+                300,
+                (s) => transactionService.create({
+                  productId: s.value.data.id,
+                  type: 'import',
+                  quantity: s.value.data.quantity,
+                  note: `Import từ Excel - Tồn kho ban đầu: ${s.value.data.quantity}`
+                }),
+                'Đang tạo transaction'
+              );
+              
+              const txFailed = transactionResults.filter(r => r.status === 'rejected');
+              if (txFailed.length > 0) {
+                console.warn(`⚠️ ${txFailed.length} transaction tạo lỗi (không ảnh hưởng sản phẩm)`);
+              }
+            }
 
             if (onRefreshData) {
               await onRefreshData();
             }
             
             setCurrentPage(1);
-            alert(`✅ Import hoàn tất!\n\nThành công: ${success.length}\nLỗi: ${failed.length}`);
+            alert(`✅ Import hoàn tất!\n\n✓ Thành công: ${success.length}\n✗ Lỗi: ${failed.length}`);
           } catch (error) {
             console.error('Error importing products:', error);
             alert('Có lỗi khi import sản phẩm. Vui lòng thử lại!');
@@ -379,6 +446,7 @@ function ProductsTab({
       alert('Có lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file.');
     } finally {
       setImporting(false);
+      setProgress({ current: 0, total: 0, message: '' });
       e.target.value = '';
     }
   };
@@ -393,7 +461,7 @@ function ProductsTab({
           />
           
           <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
-            {/* ========== THÊM MỚI: Filter Button ========== */}
+            {/* Filter Button */}
             <button
               className="btn-secondary"
               onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -563,7 +631,7 @@ function ProductsTab({
               </>
             )}
 
-            
+            {/* Delete All Button */}
             <button
               className="btn-secondary"
               onClick={handleDeleteAllClick}
@@ -580,7 +648,7 @@ function ProductsTab({
               <span>Xóa Tất Cả ({products.length})</span>
             </button>
 
-            {/* GIỮ NGUYÊN: Original Buttons */}
+            {/* Import Button */}
             <button
               className="btn-secondary"
               onClick={handleImportClick}
@@ -590,6 +658,7 @@ function ProductsTab({
               <span>{importing ? 'Đang import...' : 'Import Excel'}</span>
             </button>
             
+            {/* Add Product Button */}
             <button
               className="btn-primary"
               onClick={() => setShowAddProduct(!showAddProduct)}
@@ -608,7 +677,7 @@ function ProductsTab({
           />
         </div>
 
-        {/* ========== Active Filters ========== */}
+        {/* Active Filters */}
         {activeFilters.length > 0 && (
           <div style={{ 
             padding: '0 20px 16px',
@@ -673,7 +742,6 @@ function ProductsTab({
           />
         )}
 
-        
         <ProductTable 
           products={currentProducts}
           onUpdate={handleUpdateProduct}
@@ -689,7 +757,7 @@ function ProductsTab({
         />
       </div>
 
-      {/* ========== Delete All Confirmation Modal ========== */}
+      {/* Delete All Confirmation Modal */}
       {showDeleteModal && (
         <div style={{
           position: 'fixed',
@@ -703,7 +771,6 @@ function ProductsTab({
           justifyContent: 'center',
           padding: '16px'
         }}>
-          
           <div 
             style={{
               position: 'absolute',
@@ -716,7 +783,6 @@ function ProductsTab({
             onClick={() => !isDeleting && setShowDeleteModal(false)}
           />
           
-          {/* Modal */}
           <div style={{
             position: 'relative',
             background: 'white',
@@ -770,12 +836,42 @@ function ProductsTab({
               </span>
             </p>
 
+            {/* Progress Bar */}
+            {isDeleting && progress.total > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  fontSize: '13px',
+                  color: '#6B7280'
+                }}>
+                  <span>{progress.message}</span>
+                  <span>{progress.current}/{progress.total}</span>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  background: '#E5E7EB',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${(progress.current / progress.total) * 100}%`,
+                    height: '100%',
+                    background: 'linear-gradient(90deg, #4F46E5, #7C3AED)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
                 className="btn-secondary"
-                style={{ flex: 1 }}
+                style={{ flex: 1, opacity: isDeleting ? 0.5 : 1 }}
               >
                 Hủy
               </button>
@@ -786,12 +882,98 @@ function ProductsTab({
                 style={{ 
                   flex: 1,
                   backgroundColor: '#DC2626',
-                  borderColor: '#DC2626'
+                  borderColor: '#DC2626',
+                  opacity: isDeleting ? 0.7 : 1
                 }}
               >
                 {isDeleting ? 'Đang xóa...' : `Xóa ${products.length} sản phẩm`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Progress Modal */}
+      {importing && progress.total > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          background: 'rgba(0, 0, 0, 0.5)'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            maxWidth: '400px',
+            width: '100%',
+            padding: '24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              height: '48px',
+              margin: '0 auto 16px',
+              background: '#EEF2FF',
+              borderRadius: '50%'
+            }}>
+              <span style={{ fontSize: '24px' }}>📥</span>
+            </div>
+
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#111827',
+              textAlign: 'center',
+              margin: '0 0 16px 0'
+            }}>
+              Đang import sản phẩm
+            </h3>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+                fontSize: '13px',
+                color: '#6B7280'
+              }}>
+                <span>{progress.message}</span>
+                <span>{progress.current}/{progress.total}</span>
+              </div>
+              <div style={{
+                width: '100%',
+                height: '8px',
+                background: '#E5E7EB',
+                borderRadius: '4px',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${(progress.current / progress.total) * 100}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #4F46E5, #7C3AED)',
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+
+            <p style={{
+              fontSize: '13px',
+              color: '#9CA3AF',
+              textAlign: 'center',
+              margin: 0
+            }}>
+              Vui lòng đợi, không đóng cửa sổ này...
+            </p>
           </div>
         </div>
       )}
