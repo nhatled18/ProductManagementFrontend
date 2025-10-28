@@ -121,7 +121,7 @@ function ProductForm({ onSubmit, onCancel }) {
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Hong mất</label>
+          <label className="form-label">Hỏng mất</label>
           <input
             type="number"
             value={formData.damagedStock}
