@@ -4,7 +4,6 @@ import "../assets/styles/Overview.css";
 import "../assets/styles/Common.css";
 // import StatCard from '../Components/StatCard';
 import LowStockAlert from '../Components/LowStockAlert';
-import RecentTransactions from '../Components/RecentTransactions';
 import { formatCurrency } from '../utils/helper';
 
 function OverviewTab({ products, transactions }) {
@@ -60,10 +59,6 @@ function OverviewTab({ products, transactions }) {
         <LowStockAlert products={lowStockProducts} />
       )}
 
-      <RecentTransactions 
-        transactions={transactions} 
-        products={products} 
-      />
     </div>
   );
 }

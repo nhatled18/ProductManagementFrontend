@@ -275,7 +275,7 @@ function DashboardPage({ currentUser, onLogout }) {
                   setProducts={setProducts}
                   transactions={transactions}
                   setTransactions={setTransactions}
-                  defaultType="import"
+                  type="import"
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
@@ -292,7 +292,7 @@ function DashboardPage({ currentUser, onLogout }) {
                   setProducts={setProducts}
                   transactions={transactions}
                   setTransactions={setTransactions}
-                  defaultType="export"
+                  type="export" 
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
