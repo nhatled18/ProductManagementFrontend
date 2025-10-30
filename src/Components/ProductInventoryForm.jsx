@@ -149,7 +149,7 @@ function ProductInventoryForm({ onSubmit, onCancel, products }) {
         </div>
         
         <div className="form-group">
-          <label className="form-label">Trung bày</label>
+          <label className="form-label">Trưng bày</label>
           <input
             type="number"
             value={formData.stockIn}

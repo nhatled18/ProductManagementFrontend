@@ -60,7 +60,7 @@ function ProductInventoryTable({ inventories, products, onUpdate, onDelete }) {
             <th className="text-center">GIÁ NIÊM YẾT</th>
             <th className="text-center">GIÁ VỐN</th>
             <th className="text-center">TỒN KHO ĐẦU</th>
-            <th className="text-center">TRUNG BÀY</th>
+            <th className="text-center">TRƯNG BÀY</th>
             <th className="text-center">TỔNG NHẬP</th>
             <th className="text-center">TỔNG XUẤT</th>
             <th className="text-center">HỎNG/LỖI</th>
