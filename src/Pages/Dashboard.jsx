@@ -5,21 +5,23 @@ import "../assets/styles/Dashboard.css";
 
 // Import Services
 import { productService } from '../Services/ProductServices';
-import { transactionService } from '../Services/TransactionServices';
 import { historyService } from '../Services/HistoryServices';
+import { transactionService } from '../Services/TransactionServices';
+import { inventoryService } from '../Services/InventoryServices';
 
 // Import Components
 import OverviewTab from './OverviewTabs';
 import ProductsTab from './ProductTabs';
-import ProductDisplay from './ProductDisplay';
+import InventoryTab from './InventoryTabs';
 import TransactionTab from './TransactionTab';
 import HistoryTab from './HistoryTab';
 
 function DashboardPage({ currentUser, onLogout }) {
   const location = useLocation();
-  
+
   // State management
   const [products, setProducts] = useState([]);
+  const [inventories, setInventories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [historyLogs, setHistoryLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,15 +38,39 @@ function DashboardPage({ currentUser, onLogout }) {
       setLoading(true);
       setError(null);
 
-      const [productsRes, historyRes, transactionsRes] = await Promise.all([
+      const [productsRes, inventoriesRes, historyRes, transactionsRes] = await Promise.all([
         productService.getAll(),
+        inventoryService.getAll(),
         historyService.getAll(),
         transactionService.getAll()
       ]);
 
-      setProducts(productsRes.data || []);
-      setHistoryLogs(historyRes.data || []);
-      setTransactions(transactionsRes.data || []);
+      console.log('inventoriesRes:', inventoriesRes);
+
+      // Dùng Array.isArray() để kiểm tra dữ liệu thực tế có phải array hay không
+      setProducts(
+        Array.isArray(productsRes.data)
+          ? productsRes.data
+          : productsRes.data?.data || []
+      );
+
+      setInventories(
+        Array.isArray(inventoriesRes.data)
+          ? inventoriesRes.data
+          : inventoriesRes.data?.data || []
+      );
+
+      setHistoryLogs(
+        Array.isArray(historyRes.data)
+          ? historyRes.data
+          : historyRes.data?.data || []
+      );
+
+      setTransactions(
+        Array.isArray(transactionsRes.data)
+          ? transactionsRes.data
+          : transactionsRes.data?.data || []
+      );
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -54,11 +80,28 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Refresh riêng từng loại data
+  // Refresh riêng từng loại
+  const refreshInventories = async () => {
+    try {
+      const response = await inventoryService.getAll();
+      setInventories(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || []
+      );
+    } catch (error) {
+      console.error('Error refreshing inventories:', error);
+    }
+  };
+
   const refreshProducts = async () => {
     try {
       const response = await productService.getAll();
-      setProducts(response.data || []);
+      setProducts(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || []
+      );
     } catch (error) {
       console.error('Error refreshing products:', error);
     }
@@ -67,7 +110,11 @@ function DashboardPage({ currentUser, onLogout }) {
   const refreshHistory = async () => {
     try {
       const response = await historyService.getAll();
-      setHistoryLogs(response.data || []);
+      setHistoryLogs(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || []
+      );
     } catch (error) {
       console.error('Error refreshing history:', error);
     }
@@ -76,21 +123,22 @@ function DashboardPage({ currentUser, onLogout }) {
   const refreshTransactions = async () => {
     try {
       const response = await transactionService.getAll();
-      setTransactions(response.data || []);
+      setTransactions(
+        Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || []
+      );
     } catch (error) {
       console.error('Error refreshing transactions:', error);
     }
   };
 
-  // Handler khi add product (sync với API)
+  // CRUD Handlers
   const handleAddProduct = async (product) => {
     try {
       const response = await productService.create(product);
-      setProducts([...products, response.data]);
-      
-      // Refresh history
+      setProducts(prev => [...prev, response.data]);
       await refreshHistory();
-      
       return response.data;
     } catch (error) {
       console.error('Error adding product:', error);
@@ -98,15 +146,11 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Handler khi update product (sync với API)
   const handleUpdateProduct = async (id, updatedProduct) => {
     try {
       const response = await productService.update(id, updatedProduct);
-      setProducts(products.map(p => p.id === id ? response.data : p));
-      
-      // Refresh history
+      setProducts(prev => prev.map(p => p.id === id ? response.data : p));
       await refreshHistory();
-      
       return response.data;
     } catch (error) {
       console.error('Error updating product:', error);
@@ -114,13 +158,10 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Handler khi delete product (sync với API)
   const handleDeleteProduct = async (id) => {
     try {
       await productService.delete(id);
-      setProducts(products.filter(p => p.id !== id));
-      
-      // Refresh history
+      setProducts(prev => prev.filter(p => p.id !== id));
       await refreshHistory();
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -128,22 +169,35 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Handler khi có transaction mới
   const handleTransactionComplete = async () => {
     await Promise.all([
       refreshTransactions(),
       refreshProducts(),
+      refreshInventories(),
       refreshHistory()
     ]);
   };
 
-  // Loading state
+  // CRUD cho Inventory
+  const handleAddInventory = (newInventory) => {
+    setInventories(prev => [...prev, newInventory]);
+  };
+
+  const handleUpdateInventory = (id, updatedInventory) => {
+    setInventories(prev => prev.map(inv => inv.id === id ? updatedInventory : inv));
+  };
+
+  const handleDeleteInventory = (id) => {
+    setInventories(prev => prev.filter(inv => inv.id !== id));
+  };
+
+  // Loading & Error states
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         fontSize: '18px',
         color: '#6b7280'
@@ -153,19 +207,18 @@ function DashboardPage({ currentUser, onLogout }) {
     );
   }
 
-  // Error state
   if (error) {
     return (
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         gap: '16px'
       }}>
         <div style={{ color: '#ef4444', fontSize: '18px' }}>{error}</div>
-        <button 
+        <button
           onClick={fetchAllData}
           style={{
             padding: '10px 20px',
@@ -183,76 +236,42 @@ function DashboardPage({ currentUser, onLogout }) {
     );
   }
 
+  // Render dashboard
   return (
     <div className="dashboard-layout">
-      {/* Vùng trigger để kích hoạt sidebar */}
       <div className="sidebar-trigger"></div>
-      
-      {/* Sidebar Navigation - Auto Hide */}
+
       <div className="tabs-vertical">
-        <Link 
-          to="/dashboard" 
-          className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}
-        >
-          <span>📊</span>
+        <Link to="/dashboard" className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}>
           <span>Tổng quan</span>
         </Link>
-        <Link 
-          to="/dashboard/products" 
-          className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}
-        >
-          <span>📦</span>
-          <span>Quản lý sản phẩm</span>
+        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}>
+          <span>Sản phẩm và vật dụng</span>
         </Link>
-        <Link 
-          to="/dashboard/import" 
-          className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}
-        >
-          <span>📥</span>
+        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}>
           <span>Nhập kho</span>
         </Link>
-        <Link 
-          to="/dashboard/export" 
-          className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}
-        >
-          <span>📤</span>
+        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}>
           <span>Xuất kho</span>
         </Link>
-        <Link 
-          to="/dashboard/display" 
-          className={`tab-vertical ${location.pathname === '/dashboard/display' ? 'active' : ''}`}
-        >
-          <span>🏪</span>
-          <span>Trưng bày</span>
+        <Link to="/dashboard/inventory" className={`tab-vertical ${location.pathname === '/dashboard/inventory' ? 'active' : ''}`}>
+          <span>Tồn kho</span>
         </Link>
-        <Link 
-          to="/dashboard/history" 
-          className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}
-        >
-          <span>📜</span>
+        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}>
           <span>Lịch sử hoạt động</span>
         </Link>
       </div>
 
-      {/* Main Content Area */}
       <div className="dashboard-new">
         <div className="dashboard-content">
           <Routes>
-            <Route 
-              index 
+            <Route index element={<OverviewTab products={products} transactions={transactions} />} />
+
+            <Route
+              path="products"
               element={
-                <OverviewTab 
-                  products={products} 
-                  transactions={transactions}
-                />
-              } 
-            />
-            
-            <Route 
-              path="products" 
-              element={
-                <ProductsTab 
-                  products={products} 
+                <ProductsTab
+                  products={products}
                   setProducts={setProducts}
                   transactions={transactions}
                   setTransactions={setTransactions}
@@ -264,11 +283,11 @@ function DashboardPage({ currentUser, onLogout }) {
                   onDeleteProduct={handleDeleteProduct}
                   onRefreshData={fetchAllData}
                 />
-              } 
+              }
             />
-            
-            <Route 
-              path="import" 
+
+            <Route
+              path="import"
               element={
                 <TransactionTab
                   products={products}
@@ -281,41 +300,49 @@ function DashboardPage({ currentUser, onLogout }) {
                   currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
-              } 
+              }
             />
-            
-            <Route 
-              path="export" 
+
+            <Route
+              path="export"
               element={
                 <TransactionTab
                   products={products}
                   setProducts={setProducts}
                   transactions={transactions}
                   setTransactions={setTransactions}
-                  type="export" 
+                  type="export"
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
-              } 
+              }
             />
-            
-            <Route 
-              path="display" 
+
+            <Route
+              path="inventory"
               element={
-                <ProductDisplay products={products} />
-              } 
+                <InventoryTab
+                  inventories={inventories}
+                  setInventories={setInventories}
+                  products={products}
+                  onAddInventory={handleAddInventory}
+                  onUpdateInventory={handleUpdateInventory}
+                  onDeleteInventory={handleDeleteInventory}
+                  onRefreshData={refreshInventories}
+                />
+              }
             />
-            
-            <Route 
-              path="history" 
+
+            <Route
+              path="history"
               element={
-                <HistoryTab 
+                <HistoryTab
                   historyLogs={historyLogs}
                   currentUser={currentUser}
                 />
-              } 
+              }
             />
           </Routes>
         </div>

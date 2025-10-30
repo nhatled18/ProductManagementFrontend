@@ -27,18 +27,18 @@ function ProductTable({ products, onUpdate, onDelete }) {
       <table>
         <thead>
           <tr>
-            <th>Nhóm</th>
+            <th className="text-center">STT</th>
+            <th>NHÓM</th>
             <th>SKU</th>
-            <th>Tên mặt hàng</th>
-            <th className="text-center">Số lượng</th>
-            <th className="text-center">Tồn kho bán</th>
-            <th className="text-center">Tổng nhập mới</th>
-            <th className="text-center">Tổng đã bán</th>
-            <th className="text-center">Hỏng mất</th>
-            <th className="text-center">Tồn kho cuối</th>
-            <th style={{ textAlign: 'right' }}>Cost</th>
-            <th style={{ textAlign: 'right' }}>Giá niêm yết</th>
-            <th className="text-center">Thao tác</th>
+            <th>TÊN SẢN PHẨM</th>
+            <th className="text-center">PHÂN LOẠI KHO </th>
+            <th className="text-center">PHÂN LOẠI CHI TIẾT</th>
+            <th className="text-center">DỰ ÁN</th>
+            <th className="text-center">ĐƠN VỊ</th>
+            <th className="text-center">GIÁ VỐN</th>
+            <th className="text-center">GIÁ NIÊM YẾT</th>
+            <th className="text-center">GHI CHÚ</th>
+            <th className="text-center">THAO TÁC</th>
           </tr>
         </thead>
         <tbody>
@@ -46,6 +46,7 @@ function ProductTable({ products, onUpdate, onDelete }) {
             <tr key={product.id}>
               {editingId === product.id ? (
                 <>
+                  <td className="text-center">{product.stt}</td>
                   <td>
                     <input
                       type="text"
@@ -75,54 +76,36 @@ function ProductTable({ products, onUpdate, onDelete }) {
                   </td>
                   <td>
                     <input
-                      type="number"
-                      value={editingProduct.quantity}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, quantity: Number(e.target.value) })}
+                      type="text"
+                      value={editingProduct.stockType1 || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, stockType1: e.target.value })}
                       className="form-input"
-                      style={{ padding: '5px', width: '80px', textAlign: 'center' }}
+                      style={{ padding: '5px' }}
                     />
                   </td>
                   <td>
                     <input
-                      type="number"
-                      value={editingProduct.warehouseStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, warehouseStock: Number(e.target.value) })}
+                      type="text"
+                      value={editingProduct.stockType2 || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, stockType2: e.target.value })}
                       className="form-input"
-                      style={{ padding: '5px', width: '80px', textAlign: 'center' }}
+                      style={{ padding: '5px' }}
                     />
                   </td>
                   <td>
                     <input
-                      type="number"
-                      value={editingProduct.newStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, newStock: Number(e.target.value) })}
+                      type="text"
+                      value={editingProduct.project || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, project: e.target.value })}
                       className="form-input"
-                      style={{ padding: '5px', width: '80px', textAlign: 'center' }}
+                      style={{ padding: '5px' }}
                     />
                   </td>
                   <td>
                     <input
-                      type="number"
-                      value={editingProduct.soldStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, soldStock: Number(e.target.value) })}
-                      className="form-input"
-                      style={{ padding: '5px', width: '80px', textAlign: 'center' }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={editingProduct.damagedStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, damagedStock: Number(e.target.value) })}
-                      className="form-input"
-                      style={{ padding: '5px', width: '80px', textAlign: 'center' }}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={editingProduct.endingStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, endingStock: Number(e.target.value) })}
+                      type="text"
+                      value={editingProduct.unit || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, unit: e.target.value })}
                       className="form-input"
                       style={{ padding: '5px', width: '80px', textAlign: 'center' }}
                     />
@@ -143,6 +126,15 @@ function ProductTable({ products, onUpdate, onDelete }) {
                       onChange={(e) => setEditingProduct({ ...editingProduct, retailPrice: Number(e.target.value) })}
                       className="form-input"
                       style={{ padding: '5px', textAlign: 'right' }}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={editingProduct.note || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, note: e.target.value })}
+                      className="form-input"
+                      style={{ padding: '5px' }}
                     />
                   </td>
                   <td className="text-center">
@@ -166,33 +158,21 @@ function ProductTable({ products, onUpdate, onDelete }) {
                 </>
               ) : (
                 <>
+                  <td className="text-center">{product.stt}</td>
                   <td>
                     <span className="badge badge-blue">{product.group}</span>
                   </td>
                   <td>{product.sku}</td>
                   <td style={{ fontWeight: '500' }}>{product.productName}</td>
-                  <td className="text-center">
-                    <span style={{ fontWeight: 'bold', color: '#333' }}>
-                      {product.quantity}
-                    </span>
-                  </td>
-                  <td className="text-center">{product.warehouseStock}</td>
-                  <td className="text-center">{product.newStock}</td>
-                  <td className="text-center">{product.soldStock}</td>
-                  <td className="text-center">
-                    <span style={{ color: product.damagedStock > 0 ? '#d32f2f' : '#333' }}>
-                      {product.damagedStock}
-                    </span>
-                  </td>
-                  <td className="text-center">
-                    <span style={{ fontWeight: '600' }}>
-                      {product.endingStock}
-                    </span>
-                  </td>
+                  <td>{product.stockType1 || ''}</td>
+                  <td>{product.stockType2 || ''}</td>
+                  <td className="text-center">{product.project || ''}</td>
+                  <td className="text-center">{product.unit || ''}</td>
                   <td style={{ textAlign: 'right' }}>{formatCurrency(product.cost)}</td>
                   <td style={{ textAlign: 'right', fontWeight: '600' }}>
                     {formatCurrency(product.retailPrice)}
                   </td>
+                  <td>{product.note || ''}</td>
                   <td className="text-center">
                     <div className="flex" style={{ justifyContent: 'center' }}>
                       <button

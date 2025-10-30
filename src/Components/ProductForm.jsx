@@ -5,15 +5,13 @@ function ProductForm({ onSubmit, onCancel }) {
     group: '',
     sku: '',
     productName: '',
-    quantity: 0,
-    displayStock: 0,
-    warehouseStock: 0,
-    newStock: 0,
-    soldStock: 0,
-    damagedStock: 0,
-    endingStock: 0,
+    stockType1: '',
+    stockType2: '',
+    project: '',
+    unit: '',
     cost: 0,
-    retailPrice: 0
+    retailPrice: 0,
+    note: ''
   });
 
   const handleSubmit = () => {
@@ -23,20 +21,20 @@ function ProductForm({ onSubmit, onCancel }) {
     }
     onSubmit({
       ...formData,
-      quantity: Number(formData.quantity),
-      displayStock: Number(formData.displayStock),
-      warehouseStock: Number(formData.warehouseStock),
-      newStock: Number(formData.newStock),
-      soldStock: Number(formData.soldStock),
-      damagedStock: Number(formData.damagedStock),
-      endingStock: Number(formData.endingStock),
       cost: Number(formData.cost),
       retailPrice: Number(formData.retailPrice)
     });
     setFormData({ 
-      group: '', sku: '', productName: '', quantity: 0, displayStock: 0, 
-      warehouseStock: 0, newStock: 0, soldStock: 0, damagedStock: 0, 
-      endingStock: 0, cost: 0, retailPrice: 0 
+      group: '', 
+      sku: '', 
+      productName: '', 
+      stockType1: '',
+      stockType2: '',
+      project: '',
+      unit: '',
+      cost: 0, 
+      retailPrice: 0,
+      note: ''
     });
   };
 
@@ -67,83 +65,57 @@ function ProductForm({ onSubmit, onCancel }) {
           />
         </div>
         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-          <label className="form-label">Tên mặt hàng</label>
+          <label className="form-label">Tên sản phẩm</label>
           <input
             type="text"
             value={formData.productName}
             onChange={(e) => setFormData({ ...formData, productName: e.target.value })}
             className="form-input"
-            placeholder="Nhập tên mặt hàng"
+            placeholder="Nhập tên sản phẩm"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Số lượng</label>
+          <label className="form-label">Phân loại kho</label>
           <input
-            type="number"
-            value={formData.quantity}
-            onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+            type="text"
+            value={formData.stockType1}
+            onChange={(e) => setFormData({ ...formData, stockType1: e.target.value })}
             className="form-input"
-            placeholder="0"
-            min="0"
+            placeholder="Nhập phân loại kho"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Tồn kho bán</label>
+          <label className="form-label">Phân loại chi tiết</label>
           <input
-            type="number"
-            value={formData.warehouseStock}
-            onChange={(e) => setFormData({ ...formData, warehouseStock: e.target.value })}
+            type="text"
+            value={formData.stockType2}
+            onChange={(e) => setFormData({ ...formData, stockType2: e.target.value })}
             className="form-input"
-            placeholder="0"
-            min="0"
+            placeholder="Nhập phân loại chi tiết"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Tổng nhập mới</label>
+          <label className="form-label">Dự án</label>
           <input
-            type="number"
-            value={formData.newStock}
-            onChange={(e) => setFormData({ ...formData, newStock: e.target.value })}
+            type="text"
+            value={formData.project}
+            onChange={(e) => setFormData({ ...formData, project: e.target.value })}
             className="form-input"
-            placeholder="0"
-            min="0"
+            placeholder="Nhập dự án"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Tổng đã bán</label>
+          <label className="form-label">Đơn vị</label>
           <input
-            type="number"
-            value={formData.soldStock}
-            onChange={(e) => setFormData({ ...formData, soldStock: e.target.value })}
+            type="text"
+            value={formData.unit}
+            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
             className="form-input"
-            placeholder="0"
-            min="0"
+            placeholder="Nhập đơn vị"
           />
         </div>
         <div className="form-group">
-          <label className="form-label">Hỏng mất</label>
-          <input
-            type="number"
-            value={formData.damagedStock}
-            onChange={(e) => setFormData({ ...formData, damagedStock: e.target.value })}
-            className="form-input"
-            placeholder="0"
-            min="0"
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Tồn kho cuối</label>
-          <input
-            type="number"
-            value={formData.endingStock}
-            onChange={(e) => setFormData({ ...formData, endingStock: e.target.value })}
-            className="form-input"
-            placeholder="0"
-            min="0"
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Cost (VNĐ)</label>
+          <label className="form-label">Giá vốn (VNĐ)</label>
           <input
             type="number"
             value={formData.cost}
@@ -162,6 +134,16 @@ function ProductForm({ onSubmit, onCancel }) {
             className="form-input"
             placeholder="0"
             min="0"
+          />
+        </div>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+          <label className="form-label">Ghi chú</label>
+          <input
+            type="text"
+            value={formData.note}
+            onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+            className="form-input"
+            placeholder="Nhập ghi chú"
           />
         </div>
       </div>

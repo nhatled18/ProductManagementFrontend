@@ -61,14 +61,12 @@ function ProductsTab({
       
       results.push(...batchResults);
       
-      // Update progress after batch
       setProgress({
         current: Math.min(i + batch.length, items.length),
         total: items.length,
         message: `${progressMessage} - Batch ${currentBatch}/${totalBatches}`
       });
       
-      // Delay between batches (except last one)
       if (i + batchSize < items.length) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
@@ -93,16 +91,6 @@ function ProductsTab({
     filteredProducts = filteredProducts.filter(p => p.group === filters.group);
   }
   
-  if (filters.stockRange) {
-    if (filters.stockRange === 'low') {
-      filteredProducts = filteredProducts.filter(p => (p.endingStock || 0) < 50);
-    } else if (filters.stockRange === 'medium') {
-      filteredProducts = filteredProducts.filter(p => (p.endingStock || 0) >= 50 && (p.endingStock || 0) <= 200);
-    } else if (filters.stockRange === 'high') {
-      filteredProducts = filteredProducts.filter(p => (p.endingStock || 0) > 200);
-    }
-  }
-  
   if (filters.priceRange) {
     if (filters.priceRange === 'low') {
       filteredProducts = filteredProducts.filter(p => (p.retailPrice || 0) < 200000);
@@ -123,17 +111,19 @@ function ProductsTab({
       filteredProducts.sort((a, b) => (a.retailPrice || 0) - (b.retailPrice || 0));
     } else if (filters.sortBy === 'price_desc') {
       filteredProducts.sort((a, b) => (b.retailPrice || 0) - (a.retailPrice || 0));
-    } else if (filters.sortBy === 'stock_asc') {
-      filteredProducts.sort((a, b) => (a.endingStock || 0) - (b.endingStock || 0));
-    } else if (filters.sortBy === 'stock_desc') {
-      filteredProducts.sort((a, b) => (b.endingStock || 0) - (a.endingStock || 0));
     }
   }
 
+  // Add STT to filtered products
+  const productsWithSTT = filteredProducts.map((product, index) => ({
+    ...product,
+    stt: index + 1
+  }));
+
   // Pagination
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const totalPages = Math.ceil(productsWithSTT.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const currentProducts = productsWithSTT.slice(startIndex, startIndex + itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -148,10 +138,6 @@ function ProductsTab({
     
     const active = [];
     if (newFilters.group) active.push(`Nhóm: ${newFilters.group}`);
-    if (newFilters.stockRange) {
-      const stockLabels = { low: 'Dưới 50', medium: '50-200', high: 'Trên 200' };
-      active.push(`Tồn kho: ${stockLabels[newFilters.stockRange]}`);
-    }
     if (newFilters.priceRange) {
       const priceLabels = { low: 'Dưới 200k', medium: '200k-400k', high: 'Trên 400k' };
       active.push(`Giá: ${priceLabels[newFilters.priceRange]}`);
@@ -159,8 +145,7 @@ function ProductsTab({
     if (newFilters.sortBy) {
       const sortLabels = {
         name_asc: 'Tên A-Z', name_desc: 'Tên Z-A',
-        price_asc: 'Giá thấp → cao', price_desc: 'Giá cao → thấp',
-        stock_asc: 'Tồn kho tăng dần', stock_desc: 'Tồn kho giảm dần'
+        price_asc: 'Giá thấp → cao', price_desc: 'Giá cao → thấp'
       };
       active.push(`Sắp xếp: ${sortLabels[newFilters.sortBy]}`);
     }
@@ -171,7 +156,6 @@ function ProductsTab({
   const removeFilter = (filterText) => {
     const newFilters = { ...filters };
     if (filterText.includes('Nhóm:')) newFilters.group = '';
-    else if (filterText.includes('Tồn kho:')) newFilters.stockRange = '';
     else if (filterText.includes('Giá:')) newFilters.priceRange = '';
     else if (filterText.includes('Sắp xếp:')) newFilters.sortBy = '';
     
@@ -201,11 +185,10 @@ function ProductsTab({
     try {
       console.log(`🗑️ Bắt đầu xóa ${products.length} sản phẩm...`);
       
-      // Delete with batch processing: 10 items/batch, 500ms delay
       const results = await processBatch(
         products,
-        10,  // batch size
-        500, // delay ms
+        10,
+        500,
         (product) => productService.delete(product.id),
         'Đang xóa sản phẩm'
       );
@@ -214,14 +197,9 @@ function ProductsTab({
       const failed = results.filter(r => r.status === 'rejected');
 
       if (failed.length > 0) {
-        console.warn(`❌ ${failed.length} sản phẩm xóa lỗi:`);
-        failed.forEach((f, i) => {
-          const error = f.reason?.response?.data || f.reason?.message || 'Unknown error';
-          console.warn(`  ${i + 1}. ${error}`);
-        });
+        console.warn(`❌ ${failed.length} sản phẩm xóa lỗi`);
       }
 
-      // Refresh data
       if (onRefreshData) {
         await onRefreshData();
       }
@@ -327,32 +305,26 @@ function ProductsTab({
 
       jsonData.forEach((row, index) => {
         try {
-          if (!row['Tên mặt hàng'] || !row['SKU']) {
-            errors.push(`Dòng ${index + 2}: Thiếu tên mặt hàng hoặc SKU`);
+          if (!row['TÊN SẢN PHẨM'] || !row['SKU']) {
+            errors.push(`Dòng ${index + 2}: Thiếu tên sản phẩm hoặc SKU`);
             return;
           }
 
           const product = {
-            group: row['Nhóm'] ? String(row['Nhóm']).trim() : '',
+            group: row['NHÓM'] ? String(row['NHÓM']).trim() : '',
             sku: String(row['SKU']).trim(),
-            productName: String(row['Tên mặt hàng']).trim(),
-            quantity: row['Số lượng'] ? Number(row['Số lượng']) : 0,
-            displayStock: row['Tồn kho hiển thị'] ? Number(row['Tồn kho hiển thị']) : 0,
-            warehouseStock: row['Tồn kho bán'] ? Number(row['Tồn kho bán']) : 0,
-            newStock: row['Tổng nhập mới'] ? Number(row['Tổng nhập mới']) : 0,
-            soldStock: row['Tổng đã bán'] ? Number(row['Tổng đã bán']) : 0,
-            damagedStock: row['Hỏng mất'] ? Number(row['Hỏng mất']) : 0,
-            endingStock: row['Tồn kho cuối'] ? Number(row['Tồn kho cuối']) : 0,
-            cost: row['Cost'] ? Number(row['Cost']) : 0,
-            retailPrice: row['Giá niêm yết'] ? Number(row['Giá niêm yết']) : 0
+            productName: String(row['TÊN SẢN PHẨM']).trim(),
+            stockType1: row['PHÂN LOẠI KHO'] ? String(row['PHÂN LOẠI KHO']).trim() : '',
+            stockType2: row['PHÂN LOẠI CHI TIẾT'] ? String(row['PHÂN LOẠI CHI TIẾT']).trim() : '',
+            project: row['DỰ ÁN'] ? String(row['DỰ ÁN']).trim() : '',
+            unit: row['ĐƠN VỊ'] ? String(row['ĐƠN VỊ']).trim() : '',
+            cost: row['GIÁ VỐN'] ? Number(row['GIÁ VỐN']) : 0,
+            retailPrice: row['GIÁ NIÊM YẾT'] ? Number(row['GIÁ NIÊM YẾT']) : 0,
+            note: row['GHI CHÚ'] ? String(row['GHI CHÚ']).trim() : ''
           };
 
-          if (isNaN(product.quantity) || product.quantity < 0) {
-            errors.push(`Dòng ${index + 2}: Số lượng không hợp lệ`);
-            return;
-          }
           if (isNaN(product.cost) || product.cost < 0) {
-            errors.push(`Dòng ${index + 2}: Cost không hợp lệ`);
+            errors.push(`Dòng ${index + 2}: Giá vốn không hợp lệ`);
             return;
           }
           if (isNaN(product.retailPrice) || product.retailPrice < 0) {
@@ -383,7 +355,6 @@ function ProductsTab({
           try {
             console.log(`📥 Bắt đầu import ${importedProducts.length} sản phẩm...`);
             
-            // Import with batch processing: 10 items/batch, 500ms delay
             const results = await processBatch(
               importedProducts,
               10,
@@ -396,34 +367,7 @@ function ProductsTab({
             const failed = results.filter(r => r.status === 'rejected');
 
             if (failed.length > 0) {
-              console.warn(`❌ ${failed.length} sản phẩm import lỗi:`);
-              failed.forEach((f, i) => {
-                const error = f.reason?.response?.data || f.reason?.message || 'Unknown error';
-                console.warn(`  ${i + 1}. ${error}`);
-              });
-            }
-
-            // Create transactions for successful imports
-            if (success.length > 0) {
-              console.log(`📝 Tạo ${success.length} transaction records...`);
-              
-              const transactionResults = await processBatch(
-                success,
-                10,
-                300,
-                (s) => transactionService.create({
-                  productId: s.value.data.id,
-                  type: 'import',
-                  quantity: s.value.data.quantity,
-                  note: `Import từ Excel - Tồn kho ban đầu: ${s.value.data.quantity}`
-                }),
-                'Đang tạo transaction'
-              );
-              
-              const txFailed = transactionResults.filter(r => r.status === 'rejected');
-              if (txFailed.length > 0) {
-                console.warn(`⚠️ ${txFailed.length} transaction tạo lỗi (không ảnh hưởng sản phẩm)`);
-              }
+              console.warn(`❌ ${failed.length} sản phẩm import lỗi`);
             }
 
             if (onRefreshData) {
@@ -560,22 +504,6 @@ function ProductsTab({
 
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
-                        Tồn kho
-                      </label>
-                      <select
-                        value={filters.stockRange}
-                        onChange={(e) => applyFilter('stockRange', e.target.value)}
-                        style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
-                      >
-                        <option value="">Tất cả</option>
-                        <option value="low">Dưới 50</option>
-                        <option value="medium">50 - 200</option>
-                        <option value="high">Trên 200</option>
-                      </select>
-                    </div>
-
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
                         Giá niêm yết
                       </label>
                       <select
@@ -604,8 +532,6 @@ function ProductsTab({
                         <option value="name_desc">Tên Z → A</option>
                         <option value="price_asc">Giá thấp → cao</option>
                         <option value="price_desc">Giá cao → thấp</option>
-                        <option value="stock_asc">Tồn kho tăng dần</option>
-                        <option value="stock_desc">Tồn kho giảm dần</option>
                       </select>
                     </div>
 
@@ -753,7 +679,7 @@ function ProductsTab({
           totalPages={totalPages}
           onPageChange={setCurrentPage}
           itemsPerPage={itemsPerPage}
-          totalItems={filteredProducts.length}
+          totalItems={productsWithSTT.length}
         />
       </div>
 
@@ -792,7 +718,6 @@ function ProductsTab({
             width: '100%',
             padding: '24px'
           }}>
-            {/* Icon */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -806,7 +731,6 @@ function ProductsTab({
               <span style={{ fontSize: '24px' }}>⚠️</span>
             </div>
 
-            {/* Title */}
             <h3 style={{
               fontSize: '20px',
               fontWeight: '600',
