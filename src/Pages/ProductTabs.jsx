@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { productService } from '../Services/ProductServices';
-import { transactionService } from "../Services/TransactionServices";
 import "../assets/styles/Product.css";
 import "../assets/styles/Common.css";
 import SearchBox from '../Components/SearchBox';

@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ImportManagement from '../Components/ImportManagement';
 import ExportManagement from '../Components/ExportManagement';
+import { transactionService } from '../Services/TransactionServices';
 
 function TransactionTab({ 
-  transactions = [], 
   products = [], 
   currentUser, 
-  onTransactionComplete,
   type = 'import',
   defaultType = 'import'
 }) {
@@ -33,12 +32,34 @@ function TransactionTab({
   }]);
   const [processing, setProcessing] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
-  const [localTransactions, setLocalTransactions] = useState(transactions);
+  const [localTransactions, setLocalTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sync với props khi transactions thay đổi
-  React.useEffect(() => {
-    setLocalTransactions(transactions);
-  }, [transactions]);
+  // Load transactions từ API khi component mount
+  useEffect(() => {
+    loadTransactions();
+  }, [transactionType]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const response = await transactionService.getByType(transactionType);
+      
+      // Xử lý response data - có thể là response.data hoặc response.data.data
+      const transactionsData = Array.isArray(response.data) 
+        ? response.data 
+        : (Array.isArray(response.data?.data) ? response.data.data : []);
+      
+      console.log('Loaded transactions:', transactionsData);
+      setLocalTransactions(transactionsData);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      setLocalTransactions([]); // Set empty array khi lỗi
+      alert('❌ Không thể tải dữ liệu giao dịch: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const groups = ['all', ...new Set(products.map(p => p.group).filter(Boolean))];
 
@@ -53,7 +74,6 @@ function TransactionTab({
 
   const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
 
-  // Tính toán thống kê
   const stats = {
     total: filteredTransactions.length,
     totalAmount: filteredTransactions.reduce((sum, t) => sum + (t.quantity * t.unitPrice || 0), 0),
@@ -69,9 +89,21 @@ function TransactionTab({
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.xlsx, .xls';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files[0];
-      if (file) alert(`Đã chọn file: ${file.name}\n(Chưa xử lý file - cần thư viện xlsx)`);
+      if (file) {
+        try {
+          setProcessing(true);
+          const response = await transactionService.importExcel(file);
+          alert(`✅ Import thành công ${response.data.count || 0} giao dịch!`);
+          await loadTransactions();
+        } catch (error) {
+          console.error('Error importing:', error);
+          alert('❌ Lỗi import Excel: ' + error.message);
+        } finally {
+          setProcessing(false);
+        }
+      }
     };
     input.click();
   };
@@ -86,9 +118,7 @@ function TransactionTab({
 
     setProcessing(true);
     try {
-      // Tạo transactions mới
-      const newTransactions = validRows.map(row => ({
-        id: Date.now() + Math.random(), // Tạo ID tạm
+      const transactionsToCreate = validRows.map(row => ({
         date: row.date,
         transactionCode: row.transactionCode,
         summary: row.summary,
@@ -100,18 +130,33 @@ function TransactionTab({
         unitPrice: parseFloat(row.unitPrice),
         reason: row.reason,
         note: row.note,
-        type: transactionType,
-        createdAt: new Date().toISOString()
+        type: transactionType
       }));
 
-      // Thêm vào local state
-      setLocalTransactions([...localTransactions, ...newTransactions]);
+      console.log('Creating transactions:', transactionsToCreate);
 
-      // Gọi callback nếu có (để sync với server)
-      if (onTransactionComplete) {
-        await onTransactionComplete(newTransactions);
+      // Gọi API batch create
+      const response = await transactionService.createBatch(transactionsToCreate);
+      
+      console.log('API response:', response);
+      console.log('API response.data:', response.data);
+
+      // ✅ SỬA: Kiểm tra response đúng cấu trúc API trả về
+      const result = response.data;
+      
+      // Kiểm tra nếu có lỗi
+      if (result.failedCount > 0) {
+        console.error('❌ Some transactions failed:', result.failedItems);
+        alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\nThành công: ${result.successCount}\nChi tiết lỗi: ${JSON.stringify(result.failedItems, null, 2)}`);
+      } else {
+        // ✅ Thành công hoàn toàn
+       const count = result.successCount || result.count || validRows.length;
+      alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${count} sản phẩm!`);
       }
 
+      // ✅ QUAN TRỌNG: Reload data TRƯỚC KHI đóng modal
+      await loadTransactions();
+      
       // Reset form
       setRows([{
         id: Date.now(),
@@ -129,30 +174,30 @@ function TransactionTab({
       }]);
       
       setShowImportModal(false);
-      alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${newTransactions.length} sản phẩm!`);
+
     } catch (error) {
       console.error('Error submitting transactions:', error);
-      alert('❌ Có lỗi xảy ra: ' + error.message);
+      alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDeleteTransaction = (transactionId) => {
+  const handleDeleteTransaction = async (transactionId) => {
     if (!window.confirm('⚠️ Bạn có chắc muốn xóa giao dịch này?')) return;
 
     try {
-      // Xóa khỏi local state
+      setProcessing(true);
+      await transactionService.delete(transactionId);
+      
+      // Cập nhật UI
       setLocalTransactions(localTransactions.filter(t => t.id !== transactionId));
       alert('✅ Đã xóa giao dịch thành công!');
-
-      // Gọi callback để sync với server (nếu cần)
-      if (onTransactionComplete) {
-        onTransactionComplete();
-      }
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('❌ Có lỗi khi xóa: ' + error.message);
+      alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -178,7 +223,7 @@ function TransactionTab({
   const handleSaveEditTransaction = async () => {
     if (!editingTransaction) return;
     
-    const updatedRow = rows[0]; // Lấy row đầu tiên (vì edit chỉ có 1 row)
+    const updatedRow = rows[0];
     
     if (!updatedRow.productName || !updatedRow.quantity) {
       alert('⚠️ Vui lòng điền đầy đủ tên sản phẩm và số lượng!');
@@ -189,9 +234,7 @@ function TransactionTab({
 
     setProcessing(true);
     try {
-      // Update transaction trong local state
-      const updatedTransaction = {
-        ...editingTransaction,
+      const updatedData = {
         date: updatedRow.date,
         transactionCode: updatedRow.transactionCode,
         summary: updatedRow.summary,
@@ -203,19 +246,18 @@ function TransactionTab({
         unitPrice: parseFloat(updatedRow.unitPrice),
         reason: updatedRow.reason,
         note: updatedRow.note,
-        updatedAt: new Date().toISOString()
+        type: transactionType
       };
 
-      setLocalTransactions(localTransactions.map(t => 
-        t.id === editingTransaction.id ? updatedTransaction : t
-      ));
+      // Gọi API update
+      await transactionService.update(editingTransaction.id, updatedData);
 
-      // Gọi callback để sync với server
-      if (onTransactionComplete) {
-        await onTransactionComplete();
-      }
+      alert('✅ Đã cập nhật giao dịch thành công!');
+      
+      // ✅ Reload data TRƯỚC KHI đóng modal
+      await loadTransactions();
 
-      // Reset form và đóng modal
+      // Reset và đóng modal
       setShowImportModal(false);
       setEditingTransaction(null);
       setRows([{
@@ -233,16 +275,15 @@ function TransactionTab({
         note: ''
       }]);
 
-      alert('✅ Đã cập nhật giao dịch thành công!');
     } catch (error) {
       console.error('Error updating transaction:', error);
-      alert('❌ Có lỗi khi cập nhật: ' + error.message);
+      alert('❌ Có lỗi khi cập nhật: ' + (error.response?.data?.message || error.message));
     } finally {
       setProcessing(false);
     }
   };
 
-  const handleDeleteAllFiltered = () => {
+  const handleDeleteAllFiltered = async () => {
     if (filteredTransactions.length === 0) {
       alert('⚠️ Không có giao dịch nào để xóa!');
       return;
@@ -251,18 +292,49 @@ function TransactionTab({
     if (!window.confirm(`⚠️ Bạn có chắc muốn xóa TẤT CẢ ${filteredTransactions.length} giao dịch đã lọc?`)) return;
 
     try {
+      setProcessing(true);
       const filteredIds = filteredTransactions.map(t => t.id);
-      setLocalTransactions(localTransactions.filter(t => !filteredIds.includes(t.id)));
+      
+      // Gọi API delete many
+      await transactionService.deleteMany(filteredIds);
+      
       alert(`✅ Đã xóa ${filteredTransactions.length} giao dịch!`);
-
-      if (onTransactionComplete) {
-        onTransactionComplete();
-      }
+      
+      // Reload transactions
+      await loadTransactions();
     } catch (error) {
       console.error('Error deleting all:', error);
-      alert('❌ Có lỗi khi xóa: ' + error.message);
+      alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setProcessing(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div style={{ 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          background: 'white',
+          padding: '48px',
+          borderRadius: '20px',
+          textAlign: 'center',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <div style={{ fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+            Đang tải dữ liệu...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 
@@ -270,7 +342,6 @@ function TransactionTab({
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       padding: '24px'
     }}>
-      {/* Header Section với Gradient */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.95)',
         backdropFilter: 'blur(10px)',
@@ -298,7 +369,6 @@ function TransactionTab({
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
@@ -338,9 +408,7 @@ function TransactionTab({
           </div>
         </div>
 
-        {/* Search & Actions Bar */}
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Search */}
           <div style={{ flex: '1 1 300px', position: 'relative' }}>
             <div style={{
               position: 'absolute',
@@ -378,7 +446,6 @@ function TransactionTab({
             />
           </div>
 
-          {/* Filter Dropdown */}
           <div style={{ position: 'relative' }}>
             <select
               value={filterGroup}
@@ -414,23 +481,31 @@ function TransactionTab({
             }}>▼</div>
           </div>
 
-          {/* Action Buttons */}
           <button
             onClick={handleDeleteAllFiltered}
-            style={actionButtonStyle('#fee2e2', '#ef4444', '#fca5a5')}
+            disabled={processing}
+            style={{...actionButtonStyle('#fee2e2', '#ef4444', '#fca5a5'), opacity: processing ? 0.5 : 1}}
           >
             <span style={{ fontSize: '18px' }}>🗑️</span>
             <span>Xóa ({filteredTransactions.length})</span>
           </button>
 
-          <button onClick={handleImportExcel} style={actionButtonStyle('#dbeafe', '#3b82f6', '#93c5fd')}>
+          <button 
+            onClick={handleImportExcel} 
+            disabled={processing}
+            style={{...actionButtonStyle('#dbeafe', '#3b82f6', '#93c5fd'), opacity: processing ? 0.5 : 1}}
+          >
             <span style={{ fontSize: '18px' }}>📊</span>
             <span>Import Excel</span>
           </button>
 
           <button 
-            onClick={() => setShowImportModal(true)} 
-            style={actionButtonStyle('#d1fae5', '#10b981', '#6ee7b7')}
+            onClick={() => {
+              console.log('🔵 Opening modal...');
+              setShowImportModal(true);
+            }} 
+            disabled={processing}
+            style={{...actionButtonStyle('#d1fae5', '#10b981', '#6ee7b7'), opacity: processing ? 0.5 : 1}}
           >
             <span style={{ fontSize: '18px' }}>+</span>
             <span>{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}</span>
@@ -438,7 +513,6 @@ function TransactionTab({
         </div>
       </div>
 
-      {/* Table Container */}
       <div style={{
         background: 'white',
         borderRadius: '20px',
@@ -541,19 +615,17 @@ function TransactionTab({
                       <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                         <button 
                           onClick={() => handleEditTransaction(t)}
-                          style={miniButtonStyle('#dbeafe', '#3b82f6')}
+                          disabled={processing}
+                          style={{...miniButtonStyle('#dbeafe', '#3b82f6'), opacity: processing ? 0.5 : 1}}
+                          title="Chỉnh sửa"
                         >
                           ✏️
                         </button>
                         <button 
-                          onClick={() => handleSaveTransaction(t.id)}
-                          style={miniButtonStyle('#d1fae5', '#10b981')}
-                        >
-                          💾
-                        </button>
-                        <button 
                           onClick={() => handleDeleteTransaction(t.id)}
-                          style={miniButtonStyle('#fee2e2', '#ef4444')}
+                          disabled={processing}
+                          style={{...miniButtonStyle('#fee2e2', '#ef4444'), opacity: processing ? 0.5 : 1}}
+                          title="Xóa"
                         >
                           🗑️
                         </button>
@@ -567,7 +639,6 @@ function TransactionTab({
         </div>
       </div>
 
-      {/* Modal */}
       {showImportModal && (
         <div style={{
           position: 'fixed',
@@ -577,9 +648,18 @@ function TransactionTab({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
+          zIndex: 9999,
           animation: 'fadeIn 0.3s ease'
-        }}>
+        }}
+        onClick={(e) => {
+          // Click outside to close
+          if (e.target === e.currentTarget) {
+            console.log('🔴 Closing modal (click outside)');
+            setShowImportModal(false);
+          }
+        }}
+        >
+          {console.log('🟢 Modal is rendering, showImportModal:', showImportModal)}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '24px',
@@ -635,7 +715,7 @@ function TransactionTab({
                     reason: '',
                     note: ''
                   }]);
-                }}
+                 }}
                 style={{
                   background: 'rgba(255,255,255,0.2)',
                   border: 'none',
@@ -662,7 +742,7 @@ function TransactionTab({
                   products={products}
                   type={transactionType}
                   currentUser={currentUser}
-                  onSubmitAll={handleSubmitAll}
+                  onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
                   processing={processing}
                 />
               ) : (
@@ -671,7 +751,8 @@ function TransactionTab({
                   setRows={setRows}
                   products={products}
                   currentUser={currentUser}
-                  onSubmitAll={handleSubmitAll}
+                  onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
+                  processing={processing}
                 />
               )}
             </div>
@@ -693,7 +774,6 @@ function TransactionTab({
   );
 }
 
-// Styles
 const statsCardStyle = {
   background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
   padding: '24px',

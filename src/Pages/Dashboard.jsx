@@ -6,7 +6,6 @@ import "../assets/styles/Dashboard.css";
 // Import Services
 import { productService } from '../Services/ProductServices';
 import { historyService } from '../Services/HistoryServices';
-import { transactionService } from '../Services/TransactionServices';
 import { inventoryService } from '../Services/InventoryServices';
 
 // Import Components
@@ -38,11 +37,10 @@ function DashboardPage({ currentUser, onLogout }) {
       setLoading(true);
       setError(null);
 
-      const [productsRes, inventoriesRes, historyRes, transactionsRes] = await Promise.all([
+      const [productsRes, inventoriesRes, historyRes] = await Promise.all([
         productService.getAll(),
         inventoryService.getAll(),
-        historyService.getAll(),
-        transactionService.getAll()
+        historyService.getAll()
       ]);
 
       console.log('inventoriesRes:', inventoriesRes);
@@ -64,12 +62,6 @@ function DashboardPage({ currentUser, onLogout }) {
         Array.isArray(historyRes.data)
           ? historyRes.data
           : historyRes.data?.data || []
-      );
-
-      setTransactions(
-        Array.isArray(transactionsRes.data)
-          ? transactionsRes.data
-          : transactionsRes.data?.data || []
       );
 
     } catch (error) {
@@ -120,19 +112,6 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  const refreshTransactions = async () => {
-    try {
-      const response = await transactionService.getAll();
-      setTransactions(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || []
-      );
-    } catch (error) {
-      console.error('Error refreshing transactions:', error);
-    }
-  };
-
   // CRUD Handlers
   const handleAddProduct = async (product) => {
     try {
@@ -169,9 +148,9 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
+  // Callback khi có transaction mới/sửa/xóa
   const handleTransactionComplete = async () => {
     await Promise.all([
-      refreshTransactions(),
       refreshProducts(),
       refreshInventories(),
       refreshHistory()
@@ -273,8 +252,6 @@ function DashboardPage({ currentUser, onLogout }) {
                 <ProductsTab
                   products={products}
                   setProducts={setProducts}
-                  transactions={transactions}
-                  setTransactions={setTransactions}
                   historyLogs={historyLogs}
                   setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
@@ -291,12 +268,7 @@ function DashboardPage({ currentUser, onLogout }) {
               element={
                 <TransactionTab
                   products={products}
-                  setProducts={setProducts}
-                  transactions={transactions}
-                  setTransactions={setTransactions}
                   type="import"
-                  historyLogs={historyLogs}
-                  setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
@@ -308,12 +280,7 @@ function DashboardPage({ currentUser, onLogout }) {
               element={
                 <TransactionTab
                   products={products}
-                  setProducts={setProducts}
-                  transactions={transactions}
-                  setTransactions={setTransactions}
                   type="export"
-                  historyLogs={historyLogs}
-                  setHistoryLogs={setHistoryLogs}
                   currentUser={currentUser}
                   onTransactionComplete={handleTransactionComplete}
                 />
