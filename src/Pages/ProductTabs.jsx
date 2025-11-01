@@ -216,61 +216,76 @@ function ProductsTab({
     }
   };
 
-  // ========== PRODUCT CRUD FUNCTIONS ==========
+  // ========== PRODUCT CRUD FUNCTIONS (✅ FIXED) ==========
   const handleAddProduct = async (newProduct) => {
     try {
-      const response = await productService.create(newProduct);
+      console.log('🔵 [ProductTabs] handleAddProduct called');
+      
+      // ✅ CHỈ GỌI onAddProduct từ Dashboard
+      // Dashboard sẽ xử lý việc gọi API
       if (onAddProduct) {
-        onAddProduct(response.data);
+        await onAddProduct(newProduct);
+        setShowAddProduct(false);
+        // Alert đã được xử lý ở Dashboard
       } else {
+        // Fallback: Nếu không có onAddProduct
+        const response = await productService.create(newProduct);
         setProducts([...products, response.data]);
+        setShowAddProduct(false);
+        alert('Thêm sản phẩm thành công!');
       }
-      setShowAddProduct(false);
-      if (onRefreshData) {
-        await onRefreshData();
-      }
-      alert('Thêm sản phẩm thành công!');
     } catch (error) {
-      console.error('Error adding product:', error);
-      alert('Có lỗi khi thêm sản phẩm. Vui lòng thử lại!');
+      console.error('❌ [ProductTabs] Error adding product:', error);
+      // Error đã được alert ở Dashboard, không alert lại
     }
   };
 
   const handleUpdateProduct = async (id, updatedProduct) => {
     try {
-      const response = await productService.update(id, updatedProduct);
+      console.log('🔵 [ProductTabs] handleUpdateProduct called');
+      
+      // ✅ CHỈ GỌI onUpdateProduct từ Dashboard
       if (onUpdateProduct) {
-        onUpdateProduct(id, response.data);
+        await onUpdateProduct(id, updatedProduct);
+        // Alert đã xử lý ở Dashboard
       } else {
+        // Fallback
+        const response = await productService.update(id, updatedProduct);
         setProducts(products.map(p => p.id === id ? response.data : p));
+        alert('Cập nhật sản phẩm thành công!');
       }
-      if (onRefreshData) {
-        await onRefreshData();
-      }
-      alert('Cập nhật sản phẩm thành công!');
     } catch (error) {
-      console.error('Error updating product:', error);
-      alert('Có lỗi khi cập nhật sản phẩm. Vui lòng thử lại!');
+      console.error('❌ [ProductTabs] Error updating product:', error);
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
-      try {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+
+    try {
+      console.log('🔵 [ProductTabs] handleDeleteProduct called');
+      
+      // ✅ CHỈ GỌI onDeleteProduct từ Dashboard
+      if (onDeleteProduct) {
+        await onDeleteProduct(id);
+        // Alert đã xử lý ở Dashboard
+      } else {
+        // Fallback
         await productService.delete(id);
-        if (onDeleteProduct) {
-          onDeleteProduct(id);
-        } else {
-          setProducts(products.filter(p => p.id !== id));
-        }
-        if (onRefreshData) {
-          await onRefreshData();
-        }
+        setProducts(prev => prev.filter(p => p.id !== id));
         alert('Xóa sản phẩm thành công!');
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        alert('Có lỗi khi xóa sản phẩm. Vui lòng thử lại!');
       }
+    } catch (error) {
+      console.error('❌ [ProductTabs] Delete failed:', error);
+      
+      // Xử lý 404
+      if (error.response?.status === 404) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        alert('Xóa thành công (sản phẩm đã không còn tồn tại)!');
+        return;
+      }
+      
+      alert('Có lỗi khi xóa sản phẩm. Vui lòng thử lại!');
     }
   };
 

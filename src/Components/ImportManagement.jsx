@@ -30,7 +30,6 @@ function ImportManagement({
     setRows(rows.map(row => row.id === rowId ? {
       ...row,
       sku: product.sku,
-      productId: product.id,
       productName: product.productName
     } : row));
     setShowSuggestions(false);
@@ -60,7 +59,6 @@ function ImportManagement({
       summary: '',
       createdBy: '',
       sku: '',
-      productId: '',
       productName: '',
       quantity: '',
       unitPrice: '',
@@ -88,7 +86,6 @@ function ImportManagement({
         summary: '',
         createdBy: '',
         sku: '',
-        productId: '',
         productName: '',
         quantity: '',
         unitPrice: '',

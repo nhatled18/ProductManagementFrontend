@@ -6,7 +6,8 @@ function ExportManagement({
   setRows, 
   products, 
   onSubmitAll,
-  currentUser
+  currentUser,
+  processing
 }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +39,6 @@ function ExportManagement({
         return {
           ...row,
           sku: product.sku,
-          productId: product.id,
           productName: product.productName
         };
       }
@@ -76,11 +76,11 @@ function ExportManagement({
       summary: '',
       createdBy: currentUser?.username || '',
       sku: '',
-      productId: '',
       productName: '',
       quantity: '',
       unitPrice: '',
-      reason: ''
+      reason: '',
+      note: ''
     };
     setRows([...rows, newRow]);
   };
@@ -104,11 +104,11 @@ function ExportManagement({
         summary: '',
         createdBy: currentUser?.username || '',
         sku: '',
-        productId: '',
         productName: '',
         quantity: '',
         unitPrice: '',
-        reason: ''
+        reason: '',
+        note: ''
       }]);
     }
   };
@@ -142,6 +142,7 @@ function ExportManagement({
 
       jsonData.forEach((row, index) => {
         try {
+          // ✅ BỎ productId - chỉ cần productName và sku
           const product = products.find(p => p.sku === row.SKU);
           
           const newRow = {
@@ -151,11 +152,11 @@ function ExportManagement({
             summary: row['TÓM TẮT'] || '',
             createdBy: row['NGƯỜI LẬP'] || '',
             sku: row['SKU'] || '',
-            productId: product?.id || '',
             productName: row['TÊN SẢN PHẨM'] || product?.productName || '',
             quantity: row['SL'] || '',
             unitPrice: row['ĐƠN GIÁ'] || '',
-            reason: row['LÝ DO XUẤT'] || ''
+            reason: row['LÝ DO XUẤT'] || '',
+            note: row['GHI CHÚ'] || ''
           };
 
           importedRows.push(newRow);
@@ -192,7 +193,6 @@ function ExportManagement({
     }
 
     try {
-      // Prepare data for export
       const exportData = rows.map(row => ({
         'NGÀY': row.date,
         'MÃ PHIẾU XUẤT': row.transactionCode,
@@ -205,15 +205,14 @@ function ExportManagement({
         'THÀNH TIỀN': row.quantity && row.unitPrice 
           ? parseFloat(row.quantity) * parseFloat(row.unitPrice) 
           : '',
-        'LÝ DO XUẤT': row.reason
+        'LÝ DO XUẤT': row.reason,
+        'GHI CHÚ': row.note || ''
       }));
 
-      // Create workbook
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Xuất Kho');
 
-      // Auto-size columns
       const maxWidth = 50;
       const colWidths = Object.keys(exportData[0] || {}).map(key => {
         const maxLen = Math.max(
@@ -224,11 +223,9 @@ function ExportManagement({
       });
       ws['!cols'] = colWidths;
 
-      // Generate file name
       const date = new Date().toISOString().split('T')[0];
       const fileName = `Xuat_Kho_${date}.xlsx`;
 
-      // Download
       XLSX.writeFile(wb, fileName);
       alert('Xuất Excel thành công!');
     } catch (error) {
@@ -316,20 +313,20 @@ function ExportManagement({
           </button>
           <button
             onClick={onSubmitAll}
-            disabled={rows.filter(r => r.productId && r.quantity).length === 0}
+            disabled={processing || rows.filter(r => r.productName && r.quantity).length === 0}
             style={{
               padding: '8px 16px',
               backgroundColor: '#10b981',
               color: 'white',
               border: 'none',
               borderRadius: '6px',
-              cursor: rows.filter(r => r.productId && r.quantity).length === 0 ? 'not-allowed' : 'pointer',
+              cursor: (processing || rows.filter(r => r.productName && r.quantity).length === 0) ? 'not-allowed' : 'pointer',
               fontSize: '14px',
               fontWeight: '600',
-              opacity: rows.filter(r => r.productId && r.quantity).length === 0 ? 0.5 : 1
+              opacity: (processing || rows.filter(r => r.productName && r.quantity).length === 0) ? 0.5 : 1
             }}
           >
-            ✓ Xác nhận xuất kho
+            {processing ? '⏳ Đang xử lý...' : '✓ Xác nhận xuất kho'}
           </button>
         </div>
       </div>
@@ -345,8 +342,8 @@ function ExportManagement({
       }}>
         <div style={{ fontSize: '14px', color: '#6b7280' }}>
           Tổng: <strong>{rows.length}</strong> dòng | 
-          Hợp lệ: <strong style={{ color: '#10b981' }}>{rows.filter(r => r.productId && r.quantity).length}</strong> dòng |
-          Chưa hợp lệ: <strong style={{ color: '#ef4444' }}>{rows.filter(r => !r.productId || !r.quantity).length}</strong> dòng
+          Hợp lệ: <strong style={{ color: '#10b981' }}>{rows.filter(r => r.productName && r.quantity).length}</strong> dòng |
+          Chưa hợp lệ: <strong style={{ color: '#ef4444' }}>{rows.filter(r => !r.productName || !r.quantity).length}</strong> dòng
         </div>
         <div style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>
           Tổng tiền: <span style={{ color: '#ef4444', fontSize: '16px', fontWeight: '600' }}>
@@ -377,18 +374,20 @@ function ExportManagement({
               <th style={headerStyle}>ĐƠN GIÁ</th>
               <th style={headerStyle}>THÀNH TIỀN</th>
               <th style={headerStyle}>LÝ DO XUẤT</th>
+              <th style={headerStyle}>GHI CHÚ</th>
+              <th style={headerStyle}>THAO TÁC</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan="11" style={{ ...cellStyle, textAlign: 'center', color: '#9ca3af', padding: '40px' }}>
+                <td colSpan="12" style={{ ...cellStyle, textAlign: 'center', color: '#9ca3af', padding: '40px' }}>
                   Chưa có dữ liệu. Nhấn "Thêm dòng" hoặc "Import Excel" để bắt đầu.
                 </td>
               </tr>
             ) : (
               rows.map((row, index) => {
-                const isValid = row.productId && row.quantity;
+                const isValid = row.productName && row.quantity;
                 const rowStyle = isValid ? {} : { backgroundColor: '#fef2f2' };
                 
                 return (
@@ -455,11 +454,8 @@ function ExportManagement({
                             setEditingCell(null);
                           }, 200);
                         }}
-                        placeholder="SKU..."
-                        style={{
-                          ...inputStyle,
-                          borderColor: !row.productId && row.sku ? '#ef4444' : '#d1d5db'
-                        }}
+                        placeholder="SKU (tùy chọn)..."
+                        style={inputStyle}
                       />
                       
                       {/* Suggestions Dropdown */}
@@ -507,29 +503,30 @@ function ExportManagement({
                           ))}
                         </div>
                       )}
-                      
-                      {/* Warning if SKU not found */}
-                      {!row.productId && row.sku && editingCell !== row.id && (
+                    </td>
+
+                    {/* Tên sản phẩm - CHO PHÉP NHẬP THỦ CÔNG */}
+                    <td style={cellStyle}>
+                      <input
+                        type="text"
+                        value={row.productName}
+                        onChange={(e) => handleCellChange(row.id, 'productName', e.target.value)}
+                        placeholder="Nhập tên sản phẩm..."
+                        style={{
+                          ...inputStyle,
+                          borderColor: !row.productName ? '#ef4444' : '#d1d5db',
+                          fontWeight: row.productName ? '500' : 'normal'
+                        }}
+                      />
+                      {!row.productName && (
                         <div style={{
                           fontSize: '10px',
                           color: '#ef4444',
-                          marginTop: '2px',
-                          position: 'absolute'
+                          marginTop: '2px'
                         }}>
-                          ⚠️ Không tìm thấy
+                          * Bắt buộc
                         </div>
                       )}
-                    </td>
-
-                    {/* Tên sản phẩm */}
-                    <td style={cellStyle}>
-                      <div style={{
-                        padding: '6px 8px',
-                        color: row.productName ? '#111827' : '#9ca3af',
-                        fontSize: '13px'
-                      }}>
-                        {row.productName || '-'}
-                      </div>
                     </td>
 
                     {/* Số lượng */}
@@ -542,9 +539,18 @@ function ExportManagement({
                         min="1"
                         style={{
                           ...inputStyle,
-                          borderColor: !row.quantity && row.productId ? '#ef4444' : '#d1d5db'
+                          borderColor: !row.quantity ? '#ef4444' : '#d1d5db'
                         }}
                       />
+                      {!row.quantity && (
+                        <div style={{
+                          fontSize: '10px',
+                          color: '#ef4444',
+                          marginTop: '2px'
+                        }}>
+                          * Bắt buộc
+                        </div>
+                      )}
                     </td>
 
                     {/* Đơn giá */}
@@ -565,9 +571,10 @@ function ExportManagement({
                         padding: '6px 8px',
                         color: calculateTotal(row.quantity, row.unitPrice) ? '#ef4444' : '#9ca3af',
                         fontSize: '13px',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        textAlign: 'right'
                       }}>
-                        {calculateTotal(row.quantity, row.unitPrice) || '-'}
+                        {calculateTotal(row.quantity, row.unitPrice) ? calculateTotal(row.quantity, row.unitPrice) + ' ₫' : '-'}
                       </div>
                     </td>
 
@@ -578,6 +585,17 @@ function ExportManagement({
                         value={row.reason}
                         onChange={(e) => handleCellChange(row.id, 'reason', e.target.value)}
                         placeholder="Lý do xuất..."
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Ghi chú */}
+                    <td style={cellStyle}>
+                      <input
+                        type="text"
+                        value={row.note || ''}
+                        onChange={(e) => handleCellChange(row.id, 'note', e.target.value)}
+                        placeholder="Ghi chú..."
                         style={inputStyle}
                       />
                     </td>
@@ -616,7 +634,7 @@ function ExportManagement({
         fontSize: '13px',
         color: '#92400e'
       }}>
-        💡 <strong>Mẹo:</strong> Nhập SKU để tự động điền tên sản phẩm. Dòng màu đỏ là dòng chưa đủ thông tin (thiếu SKU hoặc số lượng).
+        💡 <strong>Mẹo:</strong> Nhập SKU để tự động điền, hoặc tự nhập tên sản phẩm. Dòng đỏ = chưa đủ thông tin (thiếu tên sản phẩm hoặc số lượng).
       </div>
     </div>
   );

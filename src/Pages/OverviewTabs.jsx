@@ -3,7 +3,6 @@ import React from 'react';
 import "../assets/styles/Overview.css";
 import "../assets/styles/Common.css";
 // import StatCard from '../Components/StatCard';
-import LowStockAlert from '../Components/LowStockAlert';
 import { formatCurrency } from '../utils/helper';
 
 function OverviewTab({ products, transactions }) {
@@ -54,11 +53,6 @@ function OverviewTab({ products, transactions }) {
           </div>
         </div>
       </div>
-
-      {lowStockProducts.length > 0 && (
-        <LowStockAlert products={lowStockProducts} />
-      )}
-
     </div>
   );
 }

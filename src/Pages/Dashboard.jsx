@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/Pages/Dashboard.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import "../assets/styles/Common.css";
 import "../assets/styles/Dashboard.css";
@@ -18,20 +19,21 @@ import HistoryTab from './HistoryTab';
 function DashboardPage({ currentUser, onLogout }) {
   const location = useLocation();
 
-  // State management
+  // State
   const [products, setProducts] = useState([]);
   const [inventories, setInventories] = useState([]);
-  const [transactions, setTransactions] = useState([]);
   const [historyLogs, setHistoryLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch all data khi component mount
+  // ✅ THÊM REF ĐỂ TRACK OPERATIONS ĐANG XỬ LÝ
+  const operationsInProgress = useRef(new Set());
+
+  // Fetch all data
   useEffect(() => {
     fetchAllData();
   }, []);
 
-  // Hàm fetch tất cả data
   const fetchAllData = async () => {
     try {
       setLoading(true);
@@ -43,26 +45,9 @@ function DashboardPage({ currentUser, onLogout }) {
         historyService.getAll()
       ]);
 
-      console.log('inventoriesRes:', inventoriesRes);
-
-      // Dùng Array.isArray() để kiểm tra dữ liệu thực tế có phải array hay không
-      setProducts(
-        Array.isArray(productsRes.data)
-          ? productsRes.data
-          : productsRes.data?.data || []
-      );
-
-      setInventories(
-        Array.isArray(inventoriesRes.data)
-          ? inventoriesRes.data
-          : inventoriesRes.data?.data || []
-      );
-
-      setHistoryLogs(
-        Array.isArray(historyRes.data)
-          ? historyRes.data
-          : historyRes.data?.data || []
-      );
+      setProducts(Array.isArray(productsRes.data) ? productsRes.data : productsRes.data?.data || []);
+      setInventories(Array.isArray(inventoriesRes.data) ? inventoriesRes.data : inventoriesRes.data?.data || []);
+      setHistoryLogs(Array.isArray(historyRes.data) ? historyRes.data : historyRes.data?.data || []);
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -72,150 +57,185 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Refresh riêng từng loại
+  // Refresh functions
   const refreshInventories = async () => {
     try {
-      const response = await inventoryService.getAll();
-      setInventories(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || []
-      );
-    } catch (error) {
-      console.error('Error refreshing inventories:', error);
-    }
+      const res = await inventoryService.getAll();
+      setInventories(Array.isArray(res.data) ? res.data : res.data?.data || []);
+    } catch (err) { console.error(err); }
   };
 
   const refreshProducts = async () => {
     try {
-      const response = await productService.getAll();
-      setProducts(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || []
-      );
-    } catch (error) {
-      console.error('Error refreshing products:', error);
-    }
+      const res = await productService.getAll();
+      setProducts(Array.isArray(res.data) ? res.data : res.data?.data || []);
+    } catch (err) { console.error(err); }
   };
 
   const refreshHistory = async () => {
     try {
-      const response = await historyService.getAll();
-      setHistoryLogs(
-        Array.isArray(response.data)
-          ? response.data
-          : response.data?.data || []
-      );
-    } catch (error) {
-      console.error('Error refreshing history:', error);
-    }
+      const res = await historyService.getAll();
+      setHistoryLogs(Array.isArray(res.data) ? res.data : res.data?.data || []);
+    } catch (err) { console.error(err); }
   };
 
-  // CRUD Handlers
+  // === CRUD HANDLERS (✅ ĐÃ SỬA AN TOÀN) ===
+
+  // Helper: Làm sạch dữ liệu sản phẩm
+  const cleanProductData = (product) => {
+    const { id, createdAt, updatedAt, ...data } = product;
+    return {
+      productName: data.productName?.trim() || '',
+      sku: data.sku?.trim() || '',
+      group: data.group?.trim() || null,
+      stockType1: data.stockType1?.trim() || null,
+      stockType2: data.stockType2?.trim() || null,
+      project: data.project?.trim() || null,
+      unit: data.unit?.trim() || null,
+      note: data.note?.trim() || null,
+      cost: Number(data.cost) || 0,
+      retailPrice: Number(data.retailPrice) || 0,
+    };
+  };
+
+  // ✅ FIX: THÊM PROTECTION NGĂN DOUBLE CALL
   const handleAddProduct = async (product) => {
+    // Tạo unique key cho operation này
+    const operationKey = `add_${product.sku}_${Date.now()}`;
+    
+    // ✅ KIỂM TRA XEM ĐÃ CÓ OPERATION VỚI SKU NÀY ĐANG CHẠY KHÔNG
+    const existingOp = Array.from(operationsInProgress.current)
+      .find(key => key.includes(`add_${product.sku}`));
+    
+    if (existingOp) {
+      console.warn('⚠️ [DASHBOARD] Operation đang xử lý, bỏ qua request trùng:', existingOp);
+      return;
+    }
+
+    // ✅ ĐÁNH DẤU OPERATION ĐANG XỬ LÝ
+    operationsInProgress.current.add(operationKey);
+    console.log('🔵 [DASHBOARD] Bắt đầu thêm sản phẩm:', operationKey);
+
     try {
-      const response = await productService.create(product);
+      const cleanData = cleanProductData(product);
+      console.log("📦 [DASHBOARD] Dữ liệu gửi đi:", cleanData);
+
+      const response = await productService.create(cleanData);
+      
+      console.log('✅ [DASHBOARD] Thêm thành công:', response.data);
       setProducts(prev => [...prev, response.data]);
       await refreshHistory();
+      
+      alert('Thêm sản phẩm thành công!');
       return response.data;
     } catch (error) {
-      console.error('Error adding product:', error);
+      const msg = error.response?.data?.error || error.message;
+      console.error('❌ [DASHBOARD] Lỗi thêm sản phẩm:', error.response?.data);
+      alert("Lỗi: " + msg);
       throw error;
+    } finally {
+      // ✅ LUÔN XÓA OPERATION KHỎI TRACKING
+      operationsInProgress.current.delete(operationKey);
+      console.log('🔴 [DASHBOARD] Hoàn tất operation:', operationKey);
     }
   };
 
   const handleUpdateProduct = async (id, updatedProduct) => {
+    const operationKey = `update_${id}_${Date.now()}`;
+    
+    if (operationsInProgress.current.has(operationKey)) {
+      console.warn('⚠️ [DASHBOARD] Update operation đang chạy, bỏ qua');
+      return;
+    }
+
+    operationsInProgress.current.add(operationKey);
+    console.log('🔵 [DASHBOARD] Bắt đầu update:', operationKey);
+
     try {
-      const response = await productService.update(id, updatedProduct);
+      const cleanData = cleanProductData(updatedProduct);
+      console.log("🔄 [DASHBOARD] Cập nhật sản phẩm ID", id, ":", cleanData);
+
+      const response = await productService.update(id, cleanData);
       setProducts(prev => prev.map(p => p.id === id ? response.data : p));
       await refreshHistory();
+      
+      alert('Cập nhật sản phẩm thành công!');
       return response.data;
     } catch (error) {
-      console.error('Error updating product:', error);
+      const msg = error.response?.data?.error || error.message;
+      console.error('❌ [DASHBOARD] Lỗi cập nhật:', error.response?.data);
+      alert("Lỗi: " + msg);
       throw error;
+    } finally {
+      operationsInProgress.current.delete(operationKey);
+      console.log('🔴 [DASHBOARD] Hoàn tất update:', operationKey);
     }
   };
 
   const handleDeleteProduct = async (id) => {
+    if (!window.confirm("Xóa sản phẩm này?")) return;
+    
+    const operationKey = `delete_${id}_${Date.now()}`;
+    
+    if (operationsInProgress.current.has(operationKey)) {
+      console.warn('⚠️ [DASHBOARD] Delete operation đang chạy, bỏ qua');
+      return;
+    }
+
+    operationsInProgress.current.add(operationKey);
+    console.log('🔵 [DASHBOARD] Bắt đầu xóa:', operationKey);
+
     try {
-      await productService.delete(id);
-      setProducts(prev => prev.filter(p => p.id !== id));
-      await refreshHistory();
+      console.log('🗑️ [DASHBOARD] Bắt đầu xóa product ID:', id);
+      
+      const response = await productService.delete(id);
+      console.log('✅ [DASHBOARD] Response:', response);
+
+      // Đợi 300ms để transaction commit
+      console.log('⏳ [DASHBOARD] Đợi 300ms để transaction commit hoàn toàn...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Refresh data
+      console.log('🔄 [DASHBOARD] Bắt đầu refresh data...');
+      await Promise.all([
+        refreshProducts(),
+        refreshHistory()
+      ]);
+      
+      console.log('✅ [DASHBOARD] Hoàn tất! Data đã được refresh');
+      alert("Xóa sản phẩm thành công!");
+
     } catch (error) {
-      console.error('Error deleting product:', error);
-      throw error;
+      console.error('❌ [DASHBOARD] Lỗi xóa:', error);
+      const msg = error.response?.data?.error || "Không thể xóa";
+      alert("Lỗi: " + msg);
+      
+      await refreshProducts();
+    } finally {
+      operationsInProgress.current.delete(operationKey);
+      console.log('🔴 [DASHBOARD] Hoàn tất delete:', operationKey);
     }
   };
 
-  // Callback khi có transaction mới/sửa/xóa
   const handleTransactionComplete = async () => {
-    await Promise.all([
-      refreshProducts(),
-      refreshInventories(),
-      refreshHistory()
-    ]);
+    await Promise.all([refreshProducts(), refreshInventories(), refreshHistory()]);
   };
 
-  // CRUD cho Inventory
-  const handleAddInventory = (newInventory) => {
-    setInventories(prev => [...prev, newInventory]);
-  };
+  // Inventory handlers
+  const handleAddInventory = (newInv) => setInventories(prev => [...prev, newInv]);
+  const handleUpdateInventory = (id, updated) => setInventories(prev => prev.map(i => i.id === id ? updated : i));
+  const handleDeleteInventory = (id) => setInventories(prev => prev.filter(i => i.id !== id));
 
-  const handleUpdateInventory = (id, updatedInventory) => {
-    setInventories(prev => prev.map(inv => inv.id === id ? updatedInventory : inv));
-  };
+  // Loading & Error UI
+  if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
+  if (error) return (
+    <div className="error-center">
+      <p style={{ color: 'red' }}>{error}</p>
+      <button onClick={fetchAllData} className="btn-primary">Thử lại</button>
+    </div>
+  );
 
-  const handleDeleteInventory = (id) => {
-    setInventories(prev => prev.filter(inv => inv.id !== id));
-  };
-
-  // Loading & Error states
-  if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        fontSize: '18px',
-        color: '#6b7280'
-      }}>
-        <div>Đang tải dữ liệu...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        gap: '16px'
-      }}>
-        <div style={{ color: '#ef4444', fontSize: '18px' }}>{error}</div>
-        <button
-          onClick={fetchAllData}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer'
-          }}
-        >
-          Thử lại
-        </button>
-      </div>
-    );
-  }
-
-  // Render dashboard
+  // Render
   return (
     <div className="dashboard-layout">
       <div className="sidebar-trigger"></div>
@@ -224,19 +244,19 @@ function DashboardPage({ currentUser, onLogout }) {
         <Link to="/dashboard" className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}>
           <span>Tổng quan</span>
         </Link>
-        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname === '/dashboard/products' ? 'active' : ''}`}>
+        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname.includes('products') ? 'active' : ''}`}>
           <span>Sản phẩm và vật dụng</span>
         </Link>
-        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname === '/dashboard/import' ? 'active' : ''}`}>
+        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname.includes('import') ? 'active' : ''}`}>
           <span>Nhập kho</span>
         </Link>
-        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname === '/dashboard/export' ? 'active' : ''}`}>
+        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname.includes('export') ? 'active' : ''}`}>
           <span>Xuất kho</span>
         </Link>
-        <Link to="/dashboard/inventory" className={`tab-vertical ${location.pathname === '/dashboard/inventory' ? 'active' : ''}`}>
+        <Link to="/dashboard/inventory" className={`tab-vertical ${location.pathname.includes('inventory') ? 'active' : ''}`}>
           <span>Tồn kho</span>
         </Link>
-        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname === '/dashboard/history' ? 'active' : ''}`}>
+        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname.includes('history') ? 'active' : ''}`}>
           <span>Lịch sử hoạt động</span>
         </Link>
       </div>
@@ -244,73 +264,34 @@ function DashboardPage({ currentUser, onLogout }) {
       <div className="dashboard-new">
         <div className="dashboard-content">
           <Routes>
-            <Route index element={<OverviewTab products={products} transactions={transactions} />} />
-
-            <Route
-              path="products"
-              element={
-                <ProductsTab
-                  products={products}
-                  setProducts={setProducts}
-                  historyLogs={historyLogs}
-                  setHistoryLogs={setHistoryLogs}
-                  currentUser={currentUser}
-                  onAddProduct={handleAddProduct}
-                  onUpdateProduct={handleUpdateProduct}
-                  onDeleteProduct={handleDeleteProduct}
-                  onRefreshData={fetchAllData}
-                />
-              }
-            />
-
-            <Route
-              path="import"
-              element={
-                <TransactionTab
-                  products={products}
-                  type="import"
-                  currentUser={currentUser}
-                  onTransactionComplete={handleTransactionComplete}
-                />
-              }
-            />
-
-            <Route
-              path="export"
-              element={
-                <TransactionTab
-                  products={products}
-                  type="export"
-                  currentUser={currentUser}
-                  onTransactionComplete={handleTransactionComplete}
-                />
-              }
-            />
-
-            <Route
-              path="inventory"
-              element={
-                <InventoryTab
-                  inventories={inventories}
-                  setInventories={setInventories}
-                  products={products}
-                  onAddInventory={handleAddInventory}
-                  onUpdateInventory={handleUpdateInventory}
-                  onDeleteInventory={handleDeleteInventory}
-                  onRefreshData={refreshInventories}
-                />
-              }
-            />
-
-            <Route
-              path="history"
-              element={
-                <HistoryTab
-                  historyLogs={historyLogs}
-                  currentUser={currentUser}
-                />
-              }
-            />
+            <Route index element={<OverviewTab products={products} />} />
+            <Route path="products" element={
+              <ProductsTab
+                products={products}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                onRefreshData={refreshProducts}
+                currentUser={currentUser}
+              />
+            } />
+            <Route path="import" element={
+              <TransactionTab type="import" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
+            } />
+            <Route path="export" element={
+              <TransactionTab type="export" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
+            } />
+            <Route path="inventory" element={
+              <InventoryTab
+                inventories={inventories}
+                products={products}
+                onAddInventory={handleAddInventory}
+                onUpdateInventory={handleUpdateInventory}
+                onDeleteInventory={handleDeleteInventory}
+                onRefreshData={refreshInventories}
+              />
+            } />
+            <Route path="history" element={<HistoryTab historyLogs={historyLogs} currentUser={currentUser} />} />
           </Routes>
         </div>
       </div>

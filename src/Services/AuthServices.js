@@ -1,29 +1,27 @@
 // services/authService.js
-import apiClient from '../API/apiClient';
+import apiClient, { publicClient } from '../API/apiClient';
 
 export const authService = {
-  // Đăng nhập
+  // ✅ Login dùng publicClient (không gửi token cũ)
   login: async (credentials) => {
-    const response = await apiClient.post('/auth/login', credentials);
+    const response = await publicClient.post('/auth/login', credentials);
     
-    // Lưu token vào localStorage
     if (response.data?.token) {
       localStorage.setItem('authToken', response.data.token);
     }
     return response.data;
   },
 
-  // Đăng ký
-  register: (data) => apiClient.post('/auth/register', data),
+  // ✅ Register dùng publicClient
+  register: (data) => publicClient.post('/auth/register', data),
 
-  // Đăng xuất
+  // ✅ Các API khác dùng apiClient (có token)
   logout: () => {
     localStorage.removeItem('authToken');
   },
 
-  // Lấy thông tin người dùng hiện tại
   getCurrentUser: () => apiClient.get('/auth/me'),
 
-  // Đổi mật khẩu
   changePassword: (data) => apiClient.post('/auth/change-password', data),
 };
+

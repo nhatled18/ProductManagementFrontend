@@ -15,5 +15,5 @@ search: (keyword) => apiClient.get('/products/search', {
 params: { q: keyword },
 }),
 
-getCategories: () => apiClient.get('/products/categories'),
+//getCategories: () => apiClient.get('/products/categories'),
 };

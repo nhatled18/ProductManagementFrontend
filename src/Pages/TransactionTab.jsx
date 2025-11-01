@@ -23,7 +23,7 @@ function TransactionTab({
     summary: '',
     createdBy: currentUser?.name || '',
     sku: '',
-    productId: '',
+    // productId: '',
     productName: '',
     quantity: '',
     unitPrice: '',
@@ -77,7 +77,7 @@ function TransactionTab({
   const stats = {
     total: filteredTransactions.length,
     totalAmount: filteredTransactions.reduce((sum, t) => sum + (t.quantity * t.unitPrice || 0), 0),
-    totalProducts: new Set(filteredTransactions.map(t => t.productId)).size,
+    totalProducts: new Set(filteredTransactions.map(t => t.productName)).size,
     thisMonth: filteredTransactions.filter(t => {
       const date = new Date(t.date);
       const now = new Date();
@@ -109,116 +109,81 @@ function TransactionTab({
   };
 
   const handleSubmitAll = async () => {
-    const validRows = rows.filter(r => r.productName && r.quantity);
-    if (validRows.length === 0) {
-      alert('Không có dòng hợp lệ để xử lý!');
-      return;
-    }
-    if (!window.confirm(`Xác nhận ${isImport ? 'nhập' : 'xuất'} ${validRows.length} sản phẩm?`)) return;
+  const validRows = rows.filter(r => r.productName && r.quantity);
+  if (validRows.length === 0) {
+    alert('⚠️ Không có dòng hợp lệ để xử lý!');
+    return;
+  }
+  if (!window.confirm(`Xác nhận ${isImport ? 'nhập' : 'xuất'} ${validRows.length} sản phẩm?`)) return;
 
-    setProcessing(true);
-    try {
-      const transactionsToCreate = validRows.map(row => ({
-        date: row.date,
-        transactionCode: row.transactionCode,
-        summary: row.summary,
-        createdBy: row.createdBy,
-        sku: row.sku,
-        productId: row.productId,
-        productName: row.productName,
-        quantity: parseFloat(row.quantity),
-        unitPrice: parseFloat(row.unitPrice),
-        reason: row.reason,
-        note: row.note,
-        type: transactionType
-      }));
+  setProcessing(true);
+  try {
+    const transactionsToCreate = validRows.map(row => ({
+      date: row.date,
+      transactionCode: row.transactionCode,
+      summary: row.summary,
+      createdBy: row.createdBy,
+      sku: row.sku,
+      productName: row.productName,
+      quantity: parseFloat(row.quantity),
+      unitPrice: parseFloat(row.unitPrice) || 0, // ✅ THÊM || 0
+      reason: row.reason,
+      note: row.note,
+      type: transactionType
+    }));
 
-      console.log('Creating transactions:', transactionsToCreate);
+    console.log('🚀 Creating transactions:', transactionsToCreate);
 
-      // Gọi API batch create
-      const response = await transactionService.createBatch(transactionsToCreate);
+    const response = await transactionService.createBatch(transactionsToCreate);
+    
+    console.log('✅ API response:', response);
+    console.log('✅ API response.data:', response.data);
+
+    const result = response.data;
+    
+    // ✅ THÊM: Hiển thị lỗi chi tiết hơn
+    if (result.failedCount > 0) {
+      console.error('❌ Failed items:', result.failedItems);
       
-      console.log('API response:', response);
-      console.log('API response.data:', response.data);
-
-      // ✅ SỬA: Kiểm tra response đúng cấu trúc API trả về
-      const result = response.data;
+      const errorDetails = result.failedItems.map((item, idx) => 
+        `${idx + 1}. ${item.data?.productName || 'Unknown'}: ${item.error}`
+      ).join('\n');
       
-      // Kiểm tra nếu có lỗi
-      if (result.failedCount > 0) {
-        console.error('❌ Some transactions failed:', result.failedItems);
-        alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\nThành công: ${result.successCount}\nChi tiết lỗi: ${JSON.stringify(result.failedItems, null, 2)}`);
-      } else {
-        // ✅ Thành công hoàn toàn
-       const count = result.successCount || result.count || validRows.length;
+      alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\n` +
+            `Thành công: ${result.successCount}\n\n` +
+            `Chi tiết lỗi:\n${errorDetails}`);
+    } else {
+      const count = result.successCount || result.count || validRows.length;
       alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${count} sản phẩm!`);
-      }
-
-      // ✅ QUAN TRỌNG: Reload data TRƯỚC KHI đóng modal
-      await loadTransactions();
-      
-      // Reset form
-      setRows([{
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        transactionCode: '',
-        summary: '',
-        createdBy: currentUser?.name || '',
-        sku: '',
-        productId: '',
-        productName: '',
-        quantity: '',
-        unitPrice: '',
-        reason: '',
-        note: ''
-      }]);
-      
-      setShowImportModal(false);
-
-    } catch (error) {
-      console.error('Error submitting transactions:', error);
-      alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setProcessing(false);
     }
-  };
 
-  const handleDeleteTransaction = async (transactionId) => {
-    if (!window.confirm('⚠️ Bạn có chắc muốn xóa giao dịch này?')) return;
-
-    try {
-      setProcessing(true);
-      await transactionService.delete(transactionId);
-      
-      // Cập nhật UI
-      setLocalTransactions(localTransactions.filter(t => t.id !== transactionId));
-      alert('✅ Đã xóa giao dịch thành công!');
-    } catch (error) {
-      console.error('Error deleting transaction:', error);
-      alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const handleEditTransaction = (transaction) => {
-    setEditingTransaction(transaction);
+    // ✅ Reload TRƯỚC KHI đóng modal
+    await loadTransactions();
+    
     setRows([{
-      id: transaction.id,
-      date: transaction.date,
-      transactionCode: transaction.transactionCode,
-      summary: transaction.summary,
-      createdBy: transaction.createdBy,
-      sku: transaction.sku,
-      productId: transaction.productId,
-      productName: transaction.productName,
-      quantity: transaction.quantity,
-      unitPrice: transaction.unitPrice,
-      reason: transaction.reason,
-      note: transaction.note
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      transactionCode: '',
+      summary: '',
+      createdBy: currentUser?.name || '',
+      sku: '',
+      productName: '',
+      quantity: '',
+      unitPrice: '',
+      reason: '',
+      note: ''
     }]);
-    setShowImportModal(true);
-  };
+    
+    setShowImportModal(false);
+
+  } catch (error) {
+    console.error('❌ Error submitting transactions:', error);
+    console.error('❌ Error response:', error.response?.data);
+    alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
+  } finally {
+    setProcessing(false);
+  }
+};
 
   const handleSaveEditTransaction = async () => {
     if (!editingTransaction) return;
@@ -240,7 +205,7 @@ function TransactionTab({
         summary: updatedRow.summary,
         createdBy: updatedRow.createdBy,
         sku: updatedRow.sku,
-        productId: updatedRow.productId,
+        // productId: updatedRow.productId,
         productName: updatedRow.productName,
         quantity: parseFloat(updatedRow.quantity),
         unitPrice: parseFloat(updatedRow.unitPrice),
@@ -267,7 +232,7 @@ function TransactionTab({
         summary: '',
         createdBy: currentUser?.name || '',
         sku: '',
-        productId: '',
+        // productId: '',
         productName: '',
         quantity: '',
         unitPrice: '',
@@ -708,7 +673,7 @@ function TransactionTab({
                     summary: '',
                     createdBy: currentUser?.name || '',
                     sku: '',
-                    productId: '',
+                    // productId: '',
                     productName: '',
                     quantity: '',
                     unitPrice: '',
