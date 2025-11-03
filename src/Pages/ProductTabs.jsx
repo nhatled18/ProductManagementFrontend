@@ -19,10 +19,11 @@ function ProductsTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false)
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter & Delete All States
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
   const [filters, setFilters] = useState({
     group: '',
     stockRange: '',
@@ -39,7 +40,7 @@ function ProductsTab({
   const itemsPerPage = 10;
   const fileInputRef = useRef(null);
 
-  // ========== BATCH PROCESSING HELPER ==========
+  // ========== BATCH PROCESSING HELPER WITH RETRY ==========
   const processBatch = async (items, batchSize, delayMs, processFn, progressMessage = 'Đang xử lý') => {
     const results = [];
     const totalBatches = Math.ceil(items.length / batchSize);
@@ -72,6 +73,28 @@ function ProductsTab({
     }
     
     return results;
+  };
+
+  // ========== RETRY HELPER FOR DEADLOCK ==========
+  const retryWithBackoff = async (fn, maxRetries = 3, initialDelay = 1000) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await fn();
+      } catch (error) {
+        // Kiểm tra nếu là lỗi deadlock (P2034)
+        const isDeadlock = error.code === 'P2034' || 
+                          error.message?.includes('write conflict') || 
+                          error.message?.includes('deadlock');
+        
+        if (isDeadlock && i < maxRetries - 1) {
+          const delay = initialDelay * Math.pow(2, i); // Exponential backoff
+          console.log(`⏳ Retry ${i + 1}/${maxRetries} sau ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw error;
+      }
+    }
   };
 
   // ========== FILTER PRODUCTS ==========
@@ -186,17 +209,39 @@ function ProductsTab({
       
       const results = await processBatch(
         products,
-        10,
-        500,
-        (product) => productService.delete(product.id),
+        3, // ⚠️ GIẢM XUỐNG 3 để tránh deadlock
+        1200, // ⚠️ TĂNG delay lên 1200ms
+        async (product) => {
+          return await retryWithBackoff(async () => {
+            try {
+              const result = await productService.delete(product.id);
+              console.log(`✅ Xóa thành công: ${product.sku}`);
+              return result;
+            } catch (error) {
+              // Bỏ qua lỗi 404 (sản phẩm đã bị xóa)
+              if (error.response?.status === 404) {
+                console.log(`⚠️ Sản phẩm ${product.sku} đã bị xóa trước đó`);
+                return { id: product.id, status: 'already_deleted' };
+              }
+              console.error(`❌ Lỗi xóa ${product.sku}:`, error.code || error.message);
+              throw error;
+            }
+          }, 3, 1000); // Retry tối đa 3 lần, delay 1s
+        },
         'Đang xóa sản phẩm'
       );
 
       const success = results.filter(r => r.status === 'fulfilled');
       const failed = results.filter(r => r.status === 'rejected');
 
+      // Log chi tiết các lỗi
       if (failed.length > 0) {
-        console.warn(`❌ ${failed.length} sản phẩm xóa lỗi`);
+        console.warn(`❌ ${failed.length} sản phẩm xóa lỗi:`);
+        failed.forEach((result, index) => {
+          if (index < 5) { // Chỉ log 5 lỗi đầu
+            console.error(`  - ${result.reason?.code || result.reason?.message || 'Unknown error'}`);
+          }
+        });
       }
 
       if (onRefreshData) {
@@ -206,29 +251,31 @@ function ProductsTab({
       setShowDeleteModal(false);
       setProgress({ current: 0, total: 0, message: '' });
       
-      alert(`✅ Xóa hoàn tất!\n\n✓ Thành công: ${success.length}\n✗ Lỗi: ${failed.length}`);
+      // Hiển thị thông báo chi tiết hơn
+      const message = `✅ Xóa hoàn tất!\n\n` +
+        `✓ Thành công: ${success.length}\n` +
+        `✗ Lỗi: ${failed.length}` +
+        (failed.length > 0 ? `\n\n⚠️ Các sản phẩm lỗi có thể:\n- Đã bị xóa trước đó\n- Đang được sử dụng trong đơn hàng\n- Database bị conflict` : '');
+      
+      alert(message);
     } catch (error) {
       console.error('Error deleting products:', error);
-      alert('Có lỗi khi xóa sản phẩm. Vui lòng thử lại!');
+      alert('Có lỗi nghiêm trọng khi xóa sản phẩm. Vui lòng thử lại!');
     } finally {
       setIsDeleting(false);
       setProgress({ current: 0, total: 0, message: '' });
     }
   };
 
-  // ========== PRODUCT CRUD FUNCTIONS (✅ FIXED) ==========
+  // ========== PRODUCT CRUD FUNCTIONS ==========
   const handleAddProduct = async (newProduct) => {
     try {
       console.log('🔵 [ProductTabs] handleAddProduct called');
       
-      // ✅ CHỈ GỌI onAddProduct từ Dashboard
-      // Dashboard sẽ xử lý việc gọi API
       if (onAddProduct) {
         await onAddProduct(newProduct);
         setShowAddProduct(false);
-        // Alert đã được xử lý ở Dashboard
       } else {
-        // Fallback: Nếu không có onAddProduct
         const response = await productService.create(newProduct);
         setProducts([...products, response.data]);
         setShowAddProduct(false);
@@ -236,7 +283,6 @@ function ProductsTab({
       }
     } catch (error) {
       console.error('❌ [ProductTabs] Error adding product:', error);
-      // Error đã được alert ở Dashboard, không alert lại
     }
   };
 
@@ -244,12 +290,9 @@ function ProductsTab({
     try {
       console.log('🔵 [ProductTabs] handleUpdateProduct called');
       
-      // ✅ CHỈ GỌI onUpdateProduct từ Dashboard
       if (onUpdateProduct) {
         await onUpdateProduct(id, updatedProduct);
-        // Alert đã xử lý ở Dashboard
       } else {
-        // Fallback
         const response = await productService.update(id, updatedProduct);
         setProducts(products.map(p => p.id === id ? response.data : p));
         alert('Cập nhật sản phẩm thành công!');
@@ -265,12 +308,9 @@ function ProductsTab({
     try {
       console.log('🔵 [ProductTabs] handleDeleteProduct called');
       
-      // ✅ CHỈ GỌI onDeleteProduct từ Dashboard
       if (onDeleteProduct) {
         await onDeleteProduct(id);
-        // Alert đã xử lý ở Dashboard
       } else {
-        // Fallback
         await productService.delete(id);
         setProducts(prev => prev.filter(p => p.id !== id));
         alert('Xóa sản phẩm thành công!');
@@ -278,7 +318,6 @@ function ProductsTab({
     } catch (error) {
       console.error('❌ [ProductTabs] Delete failed:', error);
       
-      // Xử lý 404
       if (error.response?.status === 404) {
         setProducts(prev => prev.filter(p => p.id !== id));
         alert('Xóa thành công (sản phẩm đã không còn tồn tại)!');
@@ -371,9 +410,13 @@ function ProductsTab({
             
             const results = await processBatch(
               importedProducts,
-              10,
-              500,
-              (product) => productService.create(product),
+              5, // Batch size cho import
+              800, // Delay cho import
+              async (product) => {
+                return await retryWithBackoff(async () => {
+                  return await productService.create(product);
+                }, 2, 500); // Retry 2 lần cho import
+              },
               'Đang import sản phẩm'
             );
 

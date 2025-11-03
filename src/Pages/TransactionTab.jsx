@@ -23,7 +23,6 @@ function TransactionTab({
     summary: '',
     createdBy: currentUser?.name || '',
     sku: '',
-    // productId: '',
     productName: '',
     quantity: '',
     unitPrice: '',
@@ -45,7 +44,6 @@ function TransactionTab({
       setLoading(true);
       const response = await transactionService.getByType(transactionType);
       
-      // Xử lý response data - có thể là response.data hoặc response.data.data
       const transactionsData = Array.isArray(response.data) 
         ? response.data 
         : (Array.isArray(response.data?.data) ? response.data.data : []);
@@ -54,7 +52,7 @@ function TransactionTab({
       setLocalTransactions(transactionsData);
     } catch (error) {
       console.error('Error loading transactions:', error);
-      setLocalTransactions([]); // Set empty array khi lỗi
+      setLocalTransactions([]);
       alert('❌ Không thể tải dữ liệu giao dịch: ' + error.message);
     } finally {
       setLoading(false);
@@ -84,106 +82,189 @@ function TransactionTab({
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length
   };
+const handleImportExcel = () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx, .xls';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      console.log('❌ No file selected');
+      return;
+    }
 
-  const handleImportExcel = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.xlsx, .xls';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        try {
-          setProcessing(true);
-          const response = await transactionService.importExcel(file);
-          alert(`✅ Import thành công ${response.data.count || 0} giao dịch!`);
-          await loadTransactions();
-        } catch (error) {
-          console.error('Error importing:', error);
-          alert('❌ Lỗi import Excel: ' + error.message);
-        } finally {
-          setProcessing(false);
-        }
+    console.log('📁 File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    // Validate file type
+    const validTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel'
+    ];
+    
+    if (!validTypes.includes(file.type)) {
+      alert('❌ Chỉ chấp nhận file Excel (.xlsx, .xls)');
+      return;
+    }
+
+    try {
+      setProcessing(true);
+      console.log('🚀 Starting upload with type:', transactionType); // ✅ Log type
+      
+      // ✅ SỬA: Truyền type vào importExcel
+      const response = await transactionService.importExcel(file, transactionType);
+      
+      console.log('✅ Upload response:', response);
+      
+      const count = response.data?.successCount || response.data?.count || 0;
+      const failedCount = response.data?.failedCount || 0;
+      
+      if (failedCount > 0) {
+        const failedItems = response.data?.failedItems || [];
+        const errorDetails = failedItems.slice(0, 5).map((item, idx) => 
+          `${idx + 1}. Row ${item.row}: ${item.error}`
+        ).join('\n');
+        
+        alert(`⚠️ Import hoàn tất với ${failedCount} lỗi!\n\n` +
+              `Thành công: ${count}\n` +
+              `Thất bại: ${failedCount}\n\n` +
+              `Chi tiết (5 lỗi đầu):\n${errorDetails}`);
+      } else {
+        alert(`✅ Import thành công ${count} giao dịch ${transactionType === 'import' ? 'nhập' : 'xuất'} kho!`);
       }
-    };
-    input.click();
+      
+      await loadTransactions();
+      
+    } catch (error) {
+      console.error('❌ Error importing:', error);
+      console.error('Error response:', error.response?.data);
+      
+      const errorMsg = error.response?.data?.error || 
+                      error.response?.data?.message || 
+                      error.message || 
+                      'Lỗi không xác định';
+      
+      alert('❌ Lỗi import Excel: ' + errorMsg);
+    } finally {
+      setProcessing(false);
+    }
+  };
+  input.click();
+};
+
+  // ✅ THÊM HÀM handleEditTransaction
+  const handleEditTransaction = (transaction) => {
+    console.log('✏️ Editing transaction:', transaction);
+    
+    setEditingTransaction(transaction);
+    
+    setRows([{
+      id: transaction.id,
+      date: transaction.date,
+      transactionCode: transaction.transactionCode || '',
+      summary: transaction.summary || '',
+      createdBy: transaction.createdBy || currentUser?.name || '',
+      sku: transaction.sku || '',
+      productName: transaction.productName || '',
+      quantity: transaction.quantity || '',
+      unitPrice: transaction.unitPrice || '',
+      reason: transaction.reason || '',
+      note: transaction.note || ''
+    }]);
+    
+    setShowImportModal(true);
+  };
+
+  // ✅ THÊM HÀM handleDeleteTransaction
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm('⚠️ Bạn có chắc muốn xóa giao dịch này?')) return;
+
+    try {
+      setProcessing(true);
+      await transactionService.delete(id);
+      
+      alert('✅ Đã xóa giao dịch!');
+      await loadTransactions();
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleSubmitAll = async () => {
-  const validRows = rows.filter(r => r.productName && r.quantity);
-  if (validRows.length === 0) {
-    alert('⚠️ Không có dòng hợp lệ để xử lý!');
-    return;
-  }
-  if (!window.confirm(`Xác nhận ${isImport ? 'nhập' : 'xuất'} ${validRows.length} sản phẩm?`)) return;
-
-  setProcessing(true);
-  try {
-    const transactionsToCreate = validRows.map(row => ({
-      date: row.date,
-      transactionCode: row.transactionCode,
-      summary: row.summary,
-      createdBy: row.createdBy,
-      sku: row.sku,
-      productName: row.productName,
-      quantity: parseFloat(row.quantity),
-      unitPrice: parseFloat(row.unitPrice) || 0, // ✅ THÊM || 0
-      reason: row.reason,
-      note: row.note,
-      type: transactionType
-    }));
-
-    console.log('🚀 Creating transactions:', transactionsToCreate);
-
-    const response = await transactionService.createBatch(transactionsToCreate);
-    
-    console.log('✅ API response:', response);
-    console.log('✅ API response.data:', response.data);
-
-    const result = response.data;
-    
-    // ✅ THÊM: Hiển thị lỗi chi tiết hơn
-    if (result.failedCount > 0) {
-      console.error('❌ Failed items:', result.failedItems);
-      
-      const errorDetails = result.failedItems.map((item, idx) => 
-        `${idx + 1}. ${item.data?.productName || 'Unknown'}: ${item.error}`
-      ).join('\n');
-      
-      alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\n` +
-            `Thành công: ${result.successCount}\n\n` +
-            `Chi tiết lỗi:\n${errorDetails}`);
-    } else {
-      const count = result.successCount || result.count || validRows.length;
-      alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${count} sản phẩm!`);
+    const validRows = rows.filter(r => r.productName && r.quantity);
+    if (validRows.length === 0) {
+      alert('⚠️ Không có dòng hợp lệ để xử lý!');
+      return;
     }
+    if (!window.confirm(`Xác nhận ${isImport ? 'nhập' : 'xuất'} ${validRows.length} sản phẩm?`)) return;
 
-    // ✅ Reload TRƯỚC KHI đóng modal
-    await loadTransactions();
-    
-    setRows([{
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      transactionCode: '',
-      summary: '',
-      createdBy: currentUser?.name || '',
-      sku: '',
-      productName: '',
-      quantity: '',
-      unitPrice: '',
-      reason: '',
-      note: ''
-    }]);
-    
-    setShowImportModal(false);
+    setProcessing(true);
+    try {
+      const transactionsToCreate = validRows.map(row => ({
+        date: row.date,
+        transactionCode: row.transactionCode,
+        summary: row.summary,
+        createdBy: row.createdBy,
+        sku: row.sku,
+        productName: row.productName,
+        quantity: parseFloat(row.quantity),
+        unitPrice: parseFloat(row.unitPrice) || 0,
+        reason: row.reason,
+        note: row.note,
+        type: transactionType
+      }));
 
-  } catch (error) {
-    console.error('❌ Error submitting transactions:', error);
-    console.error('❌ Error response:', error.response?.data);
-    alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
-  } finally {
-    setProcessing(false);
-  }
-};
+      console.log('🚀 Creating transactions:', transactionsToCreate);
+
+      const response = await transactionService.createBatch(transactionsToCreate);
+      const result = response.data;
+      
+      if (result.failedCount > 0) {
+        console.error('❌ Failed items:', result.failedItems);
+        
+        const errorDetails = result.failedItems.map((item, idx) => 
+          `${idx + 1}. ${item.data?.productName || 'Unknown'}: ${item.error}`
+        ).join('\n');
+        
+        alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\n` +
+              `Thành công: ${result.successCount}\n\n` +
+              `Chi tiết lỗi:\n${errorDetails}`);
+      } else {
+        const count = result.successCount || result.count || validRows.length;
+        alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${count} sản phẩm!`);
+      }
+
+      await loadTransactions();
+      
+      setRows([{
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        transactionCode: '',
+        summary: '',
+        createdBy: currentUser?.name || '',
+        sku: '',
+        productName: '',
+        quantity: '',
+        unitPrice: '',
+        reason: '',
+        note: ''
+      }]);
+      
+      setShowImportModal(false);
+
+    } catch (error) {
+      console.error('❌ Error submitting transactions:', error);
+      alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const handleSaveEditTransaction = async () => {
     if (!editingTransaction) return;
@@ -205,7 +286,6 @@ function TransactionTab({
         summary: updatedRow.summary,
         createdBy: updatedRow.createdBy,
         sku: updatedRow.sku,
-        // productId: updatedRow.productId,
         productName: updatedRow.productName,
         quantity: parseFloat(updatedRow.quantity),
         unitPrice: parseFloat(updatedRow.unitPrice),
@@ -214,15 +294,12 @@ function TransactionTab({
         type: transactionType
       };
 
-      // Gọi API update
       await transactionService.update(editingTransaction.id, updatedData);
 
       alert('✅ Đã cập nhật giao dịch thành công!');
       
-      // ✅ Reload data TRƯỚC KHI đóng modal
       await loadTransactions();
 
-      // Reset và đóng modal
       setShowImportModal(false);
       setEditingTransaction(null);
       setRows([{
@@ -232,7 +309,6 @@ function TransactionTab({
         summary: '',
         createdBy: currentUser?.name || '',
         sku: '',
-        // productId: '',
         productName: '',
         quantity: '',
         unitPrice: '',
@@ -260,12 +336,10 @@ function TransactionTab({
       setProcessing(true);
       const filteredIds = filteredTransactions.map(t => t.id);
       
-      // Gọi API delete many
       await transactionService.deleteMany(filteredIds);
       
       alert(`✅ Đã xóa ${filteredTransactions.length} giao dịch!`);
       
-      // Reload transactions
       await loadTransactions();
     } catch (error) {
       console.error('Error deleting all:', error);
@@ -465,10 +539,7 @@ function TransactionTab({
           </button>
 
           <button 
-            onClick={() => {
-              console.log('🔵 Opening modal...');
-              setShowImportModal(true);
-            }} 
+            onClick={() => setShowImportModal(true)} 
             disabled={processing}
             style={{...actionButtonStyle('#d1fae5', '#10b981', '#6ee7b7'), opacity: processing ? 0.5 : 1}}
           >
@@ -617,14 +688,11 @@ function TransactionTab({
           animation: 'fadeIn 0.3s ease'
         }}
         onClick={(e) => {
-          // Click outside to close
           if (e.target === e.currentTarget) {
-            console.log('🔴 Closing modal (click outside)');
             setShowImportModal(false);
           }
         }}
         >
-          {console.log('🟢 Modal is rendering, showImportModal:', showImportModal)}
           <div style={{
             backgroundColor: 'white',
             borderRadius: '24px',
@@ -673,7 +741,6 @@ function TransactionTab({
                     summary: '',
                     createdBy: currentUser?.name || '',
                     sku: '',
-                    // productId: '',
                     productName: '',
                     quantity: '',
                     unitPrice: '',

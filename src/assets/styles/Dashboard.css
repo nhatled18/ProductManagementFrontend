@@ -11,10 +11,10 @@
 .sidebar-trigger {
   position: fixed;
   left: 0;
-  top: 80px; /* Điều chỉnh top để khớp với sidebar */
+  top: 80px;
   width: 15px;
-  height: calc(100vh - 80px); /* Điều chỉnh chiều cao */
-  z-index: 50; /* Giảm z-index để không che header */
+  height: calc(100vh - 80px);
+  z-index: 50;
   background: transparent;
   cursor: pointer;
 }
@@ -45,19 +45,19 @@
 
 /* ===== SIDEBAR NAVIGATION - AUTO HIDE ===== */
 .tabs-vertical {
-  width: 60px; /* Thu nhỏ khi ẩn - chỉ hiện icon */
+  width: 80px; /* Tăng lên để icon có không gian */
   background: white;
   padding: 30px 10px;
   box-shadow: 4px 0 30px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   position: fixed;
-  top: 80px; /* Thêm khoảng cách từ top để không che header */
-  left: 0; /* Luôn hiện một phần */
-  height: calc(100vh - 80px); /* Điều chỉnh chiều cao */
+  top: 80px;
+  left: 0;
+  height: calc(100vh - 80px);
   overflow-y: auto;
-  overflow-x: hidden; /* Ẩn phần text tràn ra */
+  overflow-x: hidden;
   z-index: 100;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -76,11 +76,12 @@
   box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2);
 }
 
+/* ===== TAB ITEMS ===== */
 .tab-vertical {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 12px;
+  gap: 14px;
+  padding: 14px 12px;
   border-radius: 14px;
   text-decoration: none;
   color: #64748b;
@@ -93,33 +94,40 @@
   justify-content: center;
 }
 
-/* Icon luôn hiện */
-.tab-vertical span:first-child {
-  font-size: 20px;
+/* ✅ ICON - Lucide React component */
+.tab-vertical svg {
   flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  min-width: 22px; /* Đảm bảo icon không bị co lại */
+  transition: all 0.3s ease;
 }
 
-/* Text ẩn khi sidebar thu nhỏ */
-.tab-vertical span:last-child {
+/* ✅ TEXT - span element */
+.tab-vertical span {
   opacity: 0;
   width: 0;
   overflow: hidden;
   transition: all 0.3s ease;
+  display: inline-block;
+  white-space: nowrap;
 }
 
 /* Hiện text khi sidebar mở rộng */
 .tabs-vertical:hover .tab-vertical,
 .sidebar-trigger:hover + .tabs-vertical .tab-vertical {
   justify-content: flex-start;
-  padding: 16px 20px;
+  padding: 14px 20px;
 }
 
-.tabs-vertical:hover .tab-vertical span:last-child,
-.sidebar-trigger:hover + .tabs-vertical .tab-vertical span:last-child {
+.tabs-vertical:hover .tab-vertical span,
+.sidebar-trigger:hover + .tabs-vertical .tab-vertical span {
   opacity: 1;
   width: auto;
+  margin-left: 0;
 }
 
+/* Decorative bar */
 .tab-vertical::before {
   content: '';
   position: absolute;
@@ -132,6 +140,7 @@
   transition: transform 0.3s ease;
 }
 
+/* Hover effect */
 .tab-vertical:hover {
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
   color: #667eea;
@@ -143,11 +152,21 @@
   transform: scaleY(1);
 }
 
+.tab-vertical:hover svg {
+  transform: scale(1.1);
+  color: #667eea;
+}
+
+/* Active state */
 .tab-vertical.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
   animation: slideIn 0.3s ease;
+}
+
+.tab-vertical.active svg {
+  color: white;
 }
 
 .tab-vertical.active::before {
@@ -160,9 +179,9 @@
 .dashboard-new {
   flex: 1;
   padding: 30px;
-  margin-left: 60px; /* Khoảng cách cho sidebar thu nhỏ */
+  margin-left: 80px; /* Cập nhật theo width mới */
   overflow-y: auto;
-  width: calc(100% - 60px);
+  width: calc(100% - 80px);
   min-height: 100vh;
   transition: margin-left 0.3s ease;
 }
@@ -187,12 +206,12 @@
 /* ===== SCROLLBAR STYLING ===== */
 .tabs-vertical::-webkit-scrollbar,
 .dashboard-new::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .tabs-vertical::-webkit-scrollbar-track,
 .dashboard-new::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
   border-radius: 10px;
 }
 
@@ -210,17 +229,15 @@
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 1024px) {
   .tabs-vertical {
-    width: 240px;
-    left: -240px;
-    padding: 20px 15px;
+    width: 70px;
   }
 
-  .tab-vertical {
-    padding: 14px 16px;
-    font-size: 14px;
+  .tabs-vertical:hover {
+    width: 240px;
   }
 
   .dashboard-new {
+    margin-left: 70px;
     padding: 20px;
   }
 }
@@ -230,7 +247,6 @@
     flex-direction: column;
   }
 
-  /* Ẩn sidebar trigger trên mobile */
   .sidebar-trigger {
     display: none;
   }
@@ -239,7 +255,8 @@
     width: 100%;
     height: auto;
     position: relative;
-    left: 0; /* Hiện sidebar trên mobile */
+    top: 0;
+    left: 0;
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
@@ -249,14 +266,25 @@
 
   .tab-vertical {
     flex-shrink: 0;
-    min-width: 140px;
+    min-width: auto;
     justify-content: center;
     padding: 12px 16px;
   }
 
+  .tab-vertical svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tab-vertical span {
+    opacity: 1;
+    width: auto;
+    font-size: 13px;
+  }
+
   .tab-vertical::before {
     width: 100%;
-    height: 4px;
+    height: 3px;
     top: auto;
     bottom: 0;
     transform: scaleX(0);
@@ -274,6 +302,7 @@
   .dashboard-new {
     padding: 15px;
     margin-left: 0;
+    width: 100%;
   }
 
   .tabs-vertical::-webkit-scrollbar {
@@ -283,9 +312,13 @@
 
 @media (max-width: 480px) {
   .tab-vertical {
-    min-width: 120px;
     padding: 10px 12px;
-    font-size: 13px;
+    font-size: 12px;
+  }
+
+  .tab-vertical svg {
+    width: 18px;
+    height: 18px;
   }
 
   .dashboard-new {
@@ -293,13 +326,47 @@
   }
 }
 
-/* ===== LOADING STATE ===== */
+/* ===== LOADING & EMPTY STATES ===== */
 .dashboard-content.loading {
   opacity: 0.6;
   pointer-events: none;
 }
 
-/* ===== EMPTY STATE ===== */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 18px;
+  color: #64748b;
+}
+
+.error-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.btn-primary {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
 .dashboard-empty {
   text-align: center;
   padding: 80px 20px;
@@ -338,11 +405,6 @@
   }
 }
 
-/* ===== TRANSITION FOR ROUTE CHANGES ===== */
-.dashboard-content > * {
-  animation: pageTransition 0.4s ease;
-}
-
 @keyframes pageTransition {
   from {
     opacity: 0;
@@ -352,4 +414,8 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+.dashboard-content > * {
+  animation: pageTransition 0.4s ease;
 }

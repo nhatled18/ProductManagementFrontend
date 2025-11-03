@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import "../assets/styles/Common.css";
 import "../assets/styles/Dashboard.css";
+import { LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, Archive, History } from 'lucide-react';
 
 // Import Services
 import { productService } from '../Services/ProductServices';
@@ -26,7 +27,6 @@ function DashboardPage({ currentUser, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ✅ THÊM REF ĐỂ TRACK OPERATIONS ĐANG XỬ LÝ
   const operationsInProgress = useRef(new Set());
 
   // Fetch all data
@@ -79,9 +79,6 @@ function DashboardPage({ currentUser, onLogout }) {
     } catch (err) { console.error(err); }
   };
 
-  // === CRUD HANDLERS (✅ ĐÃ SỬA AN TOÀN) ===
-
-  // Helper: Làm sạch dữ liệu sản phẩm
   const cleanProductData = (product) => {
     const { id, createdAt, updatedAt, ...data } = product;
     return {
@@ -98,12 +95,9 @@ function DashboardPage({ currentUser, onLogout }) {
     };
   };
 
-  // ✅ FIX: THÊM PROTECTION NGĂN DOUBLE CALL
   const handleAddProduct = async (product) => {
-    // Tạo unique key cho operation này
     const operationKey = `add_${product.sku}_${Date.now()}`;
     
-    // ✅ KIỂM TRA XEM ĐÃ CÓ OPERATION VỚI SKU NÀY ĐANG CHẠY KHÔNG
     const existingOp = Array.from(operationsInProgress.current)
       .find(key => key.includes(`add_${product.sku}`));
     
@@ -112,7 +106,6 @@ function DashboardPage({ currentUser, onLogout }) {
       return;
     }
 
-    // ✅ ĐÁNH DẤU OPERATION ĐANG XỬ LÝ
     operationsInProgress.current.add(operationKey);
     console.log('🔵 [DASHBOARD] Bắt đầu thêm sản phẩm:', operationKey);
 
@@ -134,7 +127,6 @@ function DashboardPage({ currentUser, onLogout }) {
       alert("Lỗi: " + msg);
       throw error;
     } finally {
-      // ✅ LUÔN XÓA OPERATION KHỎI TRACKING
       operationsInProgress.current.delete(operationKey);
       console.log('🔴 [DASHBOARD] Hoàn tất operation:', operationKey);
     }
@@ -191,11 +183,9 @@ function DashboardPage({ currentUser, onLogout }) {
       const response = await productService.delete(id);
       console.log('✅ [DASHBOARD] Response:', response);
 
-      // Đợi 300ms để transaction commit
       console.log('⏳ [DASHBOARD] Đợi 300ms để transaction commit hoàn toàn...');
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Refresh data
       console.log('🔄 [DASHBOARD] Bắt đầu refresh data...');
       await Promise.all([
         refreshProducts(),
@@ -221,12 +211,10 @@ function DashboardPage({ currentUser, onLogout }) {
     await Promise.all([refreshProducts(), refreshInventories(), refreshHistory()]);
   };
 
-  // Inventory handlers
   const handleAddInventory = (newInv) => setInventories(prev => [...prev, newInv]);
   const handleUpdateInventory = (id, updated) => setInventories(prev => prev.map(i => i.id === id ? updated : i));
   const handleDeleteInventory = (id) => setInventories(prev => prev.filter(i => i.id !== id));
 
-  // Loading & Error UI
   if (loading) return <div className="loading">Đang tải dữ liệu...</div>;
   if (error) return (
     <div className="error-center">
@@ -235,28 +223,56 @@ function DashboardPage({ currentUser, onLogout }) {
     </div>
   );
 
-  // Render
   return (
     <div className="dashboard-layout">
       <div className="sidebar-trigger"></div>
 
       <div className="tabs-vertical">
-        <Link to="/dashboard" className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+        <Link 
+          to="/dashboard" 
+          className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}
+        >
+          <LayoutDashboard size={20} />
           <span>Tổng quan</span>
         </Link>
-        <Link to="/dashboard/products" className={`tab-vertical ${location.pathname.includes('products') ? 'active' : ''}`}>
+
+        <Link 
+          to="/dashboard/products" 
+          className={`tab-vertical ${location.pathname.includes('products') ? 'active' : ''}`}
+        >
+          <Package size={20} />
           <span>Sản phẩm và vật dụng</span>
         </Link>
-        <Link to="/dashboard/import" className={`tab-vertical ${location.pathname.includes('import') ? 'active' : ''}`}>
+
+        <Link 
+          to="/dashboard/import" 
+          className={`tab-vertical ${location.pathname.includes('import') ? 'active' : ''}`}
+        >
+          <ArrowDownToLine size={20} />
           <span>Nhập kho</span>
         </Link>
-        <Link to="/dashboard/export" className={`tab-vertical ${location.pathname.includes('export') ? 'active' : ''}`}>
+
+        <Link 
+          to="/dashboard/export" 
+          className={`tab-vertical ${location.pathname.includes('export') ? 'active' : ''}`}
+        >
+          <ArrowUpFromLine size={20} />
           <span>Xuất kho</span>
         </Link>
-        <Link to="/dashboard/inventory" className={`tab-vertical ${location.pathname.includes('inventory') ? 'active' : ''}`}>
+
+        <Link 
+          to="/dashboard/inventory" 
+          className={`tab-vertical ${location.pathname.includes('inventory') ? 'active' : ''}`}
+        >
+          <Archive size={20} />
           <span>Tồn kho</span>
         </Link>
-        <Link to="/dashboard/history" className={`tab-vertical ${location.pathname.includes('history') ? 'active' : ''}`}>
+
+        <Link 
+          to="/dashboard/history" 
+          className={`tab-vertical ${location.pathname.includes('history') ? 'active' : ''}`}
+        >
+          <History size={20} />
           <span>Lịch sử hoạt động</span>
         </Link>
       </div>

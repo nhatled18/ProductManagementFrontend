@@ -54,9 +54,10 @@ export const transactionService = {
   },
 
   // Import từ Excel
-  importExcel: (file) => {
+  importExcel: (file, type = 'import') => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('type', type); 
     return apiClient.post('/transactions/import-excel', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
