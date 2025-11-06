@@ -92,7 +92,8 @@ const handleImportExcel = () => {
       console.log('❌ No file selected');
       return;
     }
-
+    console.log('🎯 Uploading with type:', transactionType);
+    
     console.log('📁 File selected:', {
       name: file.name,
       size: file.size,
@@ -112,42 +113,82 @@ const handleImportExcel = () => {
 
     try {
       setProcessing(true);
-      console.log('🚀 Starting upload with type:', transactionType); // ✅ Log type
+      console.log('🚀 Starting upload with type:', transactionType);
       
-      // ✅ SỬA: Truyền type vào importExcel
       const response = await transactionService.importExcel(file, transactionType);
       
-      console.log('✅ Upload response:', response);
+      console.log('✅ Full Upload response:', response);
+      console.log('📊 Response data:', response.data);
       
-      const count = response.data?.successCount || response.data?.count || 0;
-      const failedCount = response.data?.failedCount || 0;
+      const data = response.data?.data || response.data;
+      const count = data?.successCount || 0;
+      const failedCount = data?.failedCount || 0;
+      const failedItems = data?.failedItems || [];
+      const detectedType = data?.detectedType || transactionType;
+      const columnMapping = data?.columnMapping || {};
       
-      if (failedCount > 0) {
-        const failedItems = response.data?.failedItems || [];
+      console.log('📈 Import summary:', {
+        successCount: count,
+        failedCount: failedCount,
+        detectedType: detectedType,
+        columnMapping: columnMapping,
+        failedItems: failedItems
+      });
+      
+      // ✅ Hiển thị chi tiết dù thành công hay thất bại
+      if (count === 0 && failedCount === 0) {
+        // Trường hợp file rỗng hoặc không có data
+        alert('⚠️ Không có dữ liệu để import!\n\n' +
+              'Vui lòng kiểm tra:\n' +
+              '- File có dữ liệu (không chỉ có header)?\n' +
+              '- Cột "TÊN SẢN PHẨM" và "SL" có giá trị?\n' +
+              '- Format file đúng Excel (.xlsx)?');
+      } else if (failedCount > 0 && count === 0) {
+        // Tất cả đều fail
+        const errorDetails = failedItems.slice(0, 10).map((item, idx) => 
+          `${idx + 1}. Row ${item.row}: ${item.error}`
+        ).join('\n');
+        
+        alert(`❌ Import THẤT BẠI - Tất cả ${failedCount} dòng bị lỗi!\n\n` +
+              `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}\n\n` +
+              `Detected Type: ${detectedType}\n` +
+              `Column Mapping: ${JSON.stringify(columnMapping, null, 2)}`);
+      } else if (failedCount > 0 && count > 0) {
+        // Một phần thành công, một phần fail
         const errorDetails = failedItems.slice(0, 5).map((item, idx) => 
           `${idx + 1}. Row ${item.row}: ${item.error}`
         ).join('\n');
         
-        alert(`⚠️ Import hoàn tất với ${failedCount} lỗi!\n\n` +
-              `Thành công: ${count}\n` +
-              `Thất bại: ${failedCount}\n\n` +
-              `Chi tiết (5 lỗi đầu):\n${errorDetails}`);
+        alert(`⚠️ Import hoàn tất với một số lỗi!\n\n` +
+              `✅ Thành công: ${count}\n` +
+              `❌ Thất bại: ${failedCount}\n\n` +
+              `Chi tiết lỗi (5 dòng đầu):\n${errorDetails}`);
       } else {
-        alert(`✅ Import thành công ${count} giao dịch ${transactionType === 'import' ? 'nhập' : 'xuất'} kho!`);
+        // Tất cả thành công
+        alert(`✅ Import thành công ${count} giao dịch ${detectedType === 'import' ? 'nhập' : 'xuất'} kho!`);
       }
       
-      await loadTransactions();
+      // Reload transactions nếu có ít nhất 1 thành công
+      if (count > 0) {
+        await loadTransactions();
+      }
       
     } catch (error) {
       console.error('❌ Error importing:', error);
-      console.error('Error response:', error.response?.data);
+      console.error('Error response:', error.response);
+      console.error('Error data:', error.response?.data);
       
-      const errorMsg = error.response?.data?.error || 
-                      error.response?.data?.message || 
+      const errorData = error.response?.data;
+      const errorMsg = errorData?.error || 
+                      errorData?.message || 
                       error.message || 
                       'Lỗi không xác định';
       
-      alert('❌ Lỗi import Excel: ' + errorMsg);
+      const errorDetails = errorData?.details || '';
+      
+      alert('❌ Lỗi import Excel:\n\n' + 
+            errorMsg + 
+            (errorDetails ? '\n\nChi tiết:\n' + errorDetails : ''));
     } finally {
       setProcessing(false);
     }
