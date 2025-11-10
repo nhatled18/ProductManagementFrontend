@@ -61,6 +61,23 @@ function TransactionTab({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  // Batch progress states
+  const [showBatchProgress, setShowBatchProgress] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({
+    current: 0,
+    total: 0,
+    action: '',
+    percentage: 0
+  });
+
+  // OPTIMIZED BATCH SIZES for Vercel Serverless
+  const BATCH_CONFIG = {
+    IMPORT_EXCEL: 20,      // Small batch for file processing
+    SUBMIT_BATCH: 25,      // Medium batch for creating transactions
+    DELETE_BATCH: 50,      // Larger batch for simple deletes
+    DELAY_MS: 500          // Delay between batches to avoid rate limits
+  };
+
   useEffect(() => {
     loadTransactions();
   }, [transactionType]);
@@ -147,9 +164,36 @@ function TransactionTab({
 
       try {
         setProcessing(true);
+        
+        // Show progress dialog
+        setShowBatchProgress(true);
+        setBatchProgress({
+          current: 0,
+          total: 100,
+          action: 'Đang đọc file Excel...',
+          percentage: 0
+        });
+        
         console.log('🚀 Starting upload with type:', transactionType);
+        console.log(`📦 Using batch size: ${BATCH_CONFIG.IMPORT_EXCEL} items per batch`);
+        
+        // Update progress: Reading file
+        setBatchProgress({
+          current: 1,
+          total: 3,
+          action: 'Đang xử lý file Excel...',
+          percentage: 33
+        });
         
         const response = await transactionService.importExcel(file, transactionType);
+        
+        // Update progress: Processing
+        setBatchProgress({
+          current: 2,
+          total: 3,
+          action: 'Đang lưu vào database...',
+          percentage: 66
+        });
         
         console.log('✅ Full Upload response:', response);
         console.log('📊 Response data:', response.data);
@@ -160,6 +204,19 @@ function TransactionTab({
         const failedItems = data?.failedItems || [];
         const detectedType = data?.detectedType || transactionType;
         const columnMapping = data?.columnMapping || {};
+        
+        // Complete progress
+        setBatchProgress({
+          current: 3,
+          total: 3,
+          action: 'Hoàn tất!',
+          percentage: 100
+        });
+        
+        // Small delay to show completion
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setShowBatchProgress(false);
         
         console.log('📈 Import summary:', {
           successCount: count,
@@ -205,6 +262,8 @@ function TransactionTab({
         console.error('❌ Error importing:', error);
         console.error('Error response:', error.response);
         console.error('Error data:', error.response?.data);
+        
+        setShowBatchProgress(false);
         
         const errorData = error.response?.data;
         const errorMsg = errorData?.error || 
@@ -274,7 +333,7 @@ function TransactionTab({
     setProcessing(true);
     
     try {
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = BATCH_CONFIG.SUBMIT_BATCH;
       const batches = [];
       
       for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
@@ -283,6 +342,15 @@ function TransactionTab({
       
       console.log(`📦 Processing ${batches.length} batches of ${BATCH_SIZE} items each`);
       
+      // Show progress dialog
+      setShowBatchProgress(true);
+      setBatchProgress({
+        current: 0,
+        total: batches.length,
+        action: `Đang ${isImport ? 'nhập' : 'xuất'} kho - Batch`,
+        percentage: 0
+      });
+      
       let totalSuccess = 0;
       let totalFailed = 0;
       const allFailedItems = [];
@@ -290,6 +358,14 @@ function TransactionTab({
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`🔄 Processing batch ${i + 1}/${batches.length}...`);
+        
+        // Update progress
+        setBatchProgress({
+          current: i,
+          total: batches.length,
+          action: `Đang ${isImport ? 'nhập' : 'xuất'} kho - Batch ${i + 1}/${batches.length}`,
+          percentage: Math.round((i / batches.length) * 100)
+        });
         
         const transactionsToCreate = batch.map(row => ({
           date: row.date,
@@ -319,13 +395,24 @@ function TransactionTab({
           console.log(`✅ Batch ${i + 1} completed: ${result.successCount} success, ${result.failedCount} failed`);
           
           if (i < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.DELAY_MS));
           }
         } catch (batchError) {
           console.error(`❌ Batch ${i + 1} failed:`, batchError);
           totalFailed += batch.length;
         }
       }
+      
+      // Complete progress
+      setBatchProgress({
+        current: batches.length,
+        total: batches.length,
+        action: 'Hoàn tất!',
+        percentage: 100
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setShowBatchProgress(false);
       
       console.log(`📊 Final results: ${totalSuccess} success, ${totalFailed} failed`);
       
@@ -337,9 +424,11 @@ function TransactionTab({
         alert(`⚠️ Có ${totalFailed}/${validRows.length} giao dịch thất bại!\n\n` +
               `✅ Thành công: ${totalSuccess}\n` +
               `❌ Thất bại: ${totalFailed}\n\n` +
-              `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}`);
+              `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}\n\n` +
+              `Batch size: ${BATCH_SIZE} items/batch`);
       } else {
-        alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${totalSuccess} sản phẩm!`);
+        alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${totalSuccess} sản phẩm!\n\n` +
+              `📦 Đã xử lý: ${batches.length} batches (${BATCH_SIZE} items/batch)`);
       }
 
       await loadTransactions();
@@ -362,6 +451,7 @@ function TransactionTab({
 
     } catch (error) {
       console.error('❌ Error submitting transactions:', error);
+      setShowBatchProgress(false);
       alert('❌ Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
     } finally {
       setProcessing(false);
@@ -432,13 +522,13 @@ function TransactionTab({
       return;
     }
 
-    if (!window.confirm(`⚠️ Bạn có chắc muốn xóa TẤT CẢ ${filteredTransactions.length} giao dịch đã lọc?`)) return;
+    if (!window.confirm(`⚠️ Bạn có chắc muốn xóa TẤT CẢ ${filteredTransactions.length} giao dịch đã lọc?\n\n⚠️ Hành động này không thể hoàn tác!`)) return;
 
     try {
       setProcessing(true);
       const filteredIds = filteredTransactions.map(t => t.id);
       
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = BATCH_CONFIG.DELETE_BATCH;
       const batches = [];
       
       for (let i = 0; i < filteredIds.length; i += BATCH_SIZE) {
@@ -447,20 +537,51 @@ function TransactionTab({
       
       console.log(`🗑️ Deleting ${batches.length} batches of ${BATCH_SIZE} items each`);
       
+      // Show progress dialog
+      setShowBatchProgress(true);
+      setBatchProgress({
+        current: 0,
+        total: batches.length,
+        action: 'Đang xóa sản phẩm - Batch',
+        percentage: 0
+      });
+      
       for (let i = 0; i < batches.length; i++) {
         console.log(`🔄 Deleting batch ${i + 1}/${batches.length}...`);
+        
+        // Update progress
+        setBatchProgress({
+          current: i,
+          total: batches.length,
+          action: `Đang xóa sản phẩm - Batch ${i + 1}/${batches.length}`,
+          percentage: Math.round((i / batches.length) * 100)
+        });
+        
         await transactionService.deleteMany(batches[i]);
         
         if (i < batches.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.DELAY_MS));
         }
       }
       
-      alert(`✅ Đã xóa ${filteredTransactions.length} giao dịch!`);
+      // Complete progress
+      setBatchProgress({
+        current: batches.length,
+        total: batches.length,
+        action: 'Hoàn tất!',
+        percentage: 100
+      });
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setShowBatchProgress(false);
+      
+      alert(`✅ Đã xóa ${filteredTransactions.length} giao dịch!\n\n` +
+            `🗑️ Đã xử lý: ${batches.length} batches (${BATCH_SIZE} items/batch)`);
       
       await loadTransactions();
     } catch (error) {
       console.error('Error deleting all:', error);
+      setShowBatchProgress(false);
       alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
     } finally {
       setProcessing(false);
@@ -783,6 +904,179 @@ function TransactionTab({
 
       {renderPagination()}
 
+      {/* Batch Progress Dialog */}
+      {showBatchProgress && (
+        <div className="modal-overlay" style={{ zIndex: 9999 }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '20px'
+            }}>
+              {/* Warning Icon */}
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: batchProgress.action.includes('xóa') ? '#FEF3F2' : '#EFF6FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <span style={{ fontSize: '32px' }}>
+                  {batchProgress.action.includes('xóa') ? '⚠️' : '📦'}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                margin: 0,
+                textAlign: 'center'
+              }}>
+                {batchProgress.action.includes('xóa') 
+                  ? 'Đang xóa sản phẩm' 
+                  : batchProgress.action.includes('Excel')
+                  ? 'Đang import Excel'
+                  : `Đang ${isImport ? 'nhập' : 'xuất'} kho`
+                }
+              </h3>
+
+              {/* Description */}
+              <p style={{
+                fontSize: '14px',
+                color: '#666',
+                margin: 0,
+                textAlign: 'center'
+              }}>
+                {batchProgress.action.includes('xóa') && (
+                  <>
+                    Đang xóa <span style={{ color: '#EF4444', fontWeight: '600' }}>
+                      {filteredTransactions.length} sản phẩm
+                    </span> khỏi hệ thống
+                  </>
+                )}
+                {batchProgress.action.includes('Excel') && (
+                  <>Vui lòng đợi trong giây lát...</>
+                )}
+                {!batchProgress.action.includes('xóa') && !batchProgress.action.includes('Excel') && (
+                  <>Đang xử lý các giao dịch theo batch...</>
+                )}
+              </p>
+
+              {/* Warning Note - Only show for delete */}
+              {batchProgress.action.includes('xóa') && (
+                <div style={{
+                  background: '#FEF3F2',
+                  border: '1px solid #FEE2E2',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  width: '100%'
+                }}>
+                  <p style={{
+                    fontSize: '12px',
+                    color: '#991B1B',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span>⚠️</span>
+                    <span>Hành động này không thể hoàn tác!</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Progress */}
+              <div style={{ width: '100%' }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  color: '#666'
+                }}>
+                  <span>{batchProgress.action}</span>
+                  <span>{batchProgress.current}/{batchProgress.total}</span>
+                </div>
+                <div style={{
+                  width: '100%',
+                  height: '8px',
+                  background: '#F3F4F6',
+                  borderRadius: '4px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    width: `${batchProgress.percentage}%`,
+                    height: '100%',
+                    background: batchProgress.action.includes('xóa')
+                      ? 'linear-gradient(90deg, #EF4444 0%, #DC2626 100%)'
+                      : 'linear-gradient(90deg, #3B82F6 0%, #2563EB 100%)',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <div style={{
+                  marginTop: '4px',
+                  fontSize: '12px',
+                  color: '#9CA3AF',
+                  textAlign: 'right'
+                }}>
+                  {batchProgress.percentage}%
+                </div>
+              </div>
+
+              {/* Info Badge */}
+              <div style={{
+                background: '#F9FAFB',
+                border: '1px solid #E5E7EB',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                width: '100%',
+                fontSize: '12px',
+                color: '#6B7280',
+                textAlign: 'center'
+              }}>
+                💡 Batch size: {
+                  batchProgress.action.includes('xóa') 
+                    ? BATCH_CONFIG.DELETE_BATCH
+                    : batchProgress.action.includes('Excel')
+                    ? BATCH_CONFIG.IMPORT_EXCEL
+                    : BATCH_CONFIG.SUBMIT_BATCH
+                } items/batch
+              </div>
+
+              {/* Processing indicator */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+                color: '#6B7280'
+              }}>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid #E5E7EB',
+                  borderTop: '2px solid #3B82F6',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <span>Đang xử lý...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showImportModal && (
         <div 
           className="modal-overlay"
@@ -863,6 +1157,13 @@ function TransactionTab({
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
