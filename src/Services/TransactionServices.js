@@ -36,11 +36,9 @@ export const transactionService = {
     return apiClient.post('/transactions/delete-many', { ids });
   },
 
-  // Lấy transactions theo type (import/export)
   getByType: (type, params = {}) => {
-    return apiClient.get('/transactions', { 
-      params: { ...params, type } 
-    });
+    console.log('🔍 Fetching ALL transactions of type:', type);
+    return apiClient.get(`/transactions/type/${type}`, { params });
   },
 
   // Lấy transactions theo productId

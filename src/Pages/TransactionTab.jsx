@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ImportManagement from '../Components/ImportManagement';
 import ExportManagement from '../Components/ExportManagement';
 import { transactionService } from '../Services/TransactionServices';
+import "../assets/styles/TransactionTab.css";
 
 function TransactionTab({ 
   products = [], 
@@ -34,7 +35,10 @@ function TransactionTab({
   const [localTransactions, setLocalTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load transactions từ API khi component mount
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   useEffect(() => {
     loadTransactions();
   }, [transactionType]);
@@ -42,14 +46,18 @@ function TransactionTab({
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      
+      // 🔥 Gọi API getByType - Backend sẽ trả TẤT CẢ
       const response = await transactionService.getByType(transactionType);
       
       const transactionsData = Array.isArray(response.data) 
         ? response.data 
         : (Array.isArray(response.data?.data) ? response.data.data : []);
       
-      console.log('Loaded transactions:', transactionsData);
+      console.log('✅ Loaded transactions:', transactionsData.length, 'items');
+      
       setLocalTransactions(transactionsData);
+      setCurrentPage(1); // Reset về trang 1 khi load mới
     } catch (error) {
       console.error('Error loading transactions:', error);
       setLocalTransactions([]);
@@ -61,6 +69,7 @@ function TransactionTab({
 
   const groups = ['all', ...new Set(products.map(p => p.group).filter(Boolean))];
 
+  // Filtered transactions
   const filteredTransactions = localTransactions.filter(t => {
     const matchSearch = !searchTerm || 
       t.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -69,6 +78,12 @@ function TransactionTab({
     const matchGroup = filterGroup === 'all' || t.group === filterGroup;
     return matchSearch && matchGroup;
   });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTransactions.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
 
   const formatCurrency = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + ' ₫';
 
@@ -82,121 +97,114 @@ function TransactionTab({
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
     }).length
   };
-const handleImportExcel = () => {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.xlsx, .xls';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      console.log('❌ No file selected');
-      return;
-    }
-    console.log('🎯 Uploading with type:', transactionType);
-    
-    console.log('📁 File selected:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
 
-    // Validate file type
-    const validTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel'
-    ];
-    
-    if (!validTypes.includes(file.type)) {
-      alert('❌ Chỉ chấp nhận file Excel (.xlsx, .xls)');
-      return;
-    }
-
-    try {
-      setProcessing(true);
-      console.log('🚀 Starting upload with type:', transactionType);
+  const handleImportExcel = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx, .xls';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        console.log('❌ No file selected');
+        return;
+      }
+      console.log('🎯 Uploading with type:', transactionType);
       
-      const response = await transactionService.importExcel(file, transactionType);
-      
-      console.log('✅ Full Upload response:', response);
-      console.log('📊 Response data:', response.data);
-      
-      const data = response.data?.data || response.data;
-      const count = data?.successCount || 0;
-      const failedCount = data?.failedCount || 0;
-      const failedItems = data?.failedItems || [];
-      const detectedType = data?.detectedType || transactionType;
-      const columnMapping = data?.columnMapping || {};
-      
-      console.log('📈 Import summary:', {
-        successCount: count,
-        failedCount: failedCount,
-        detectedType: detectedType,
-        columnMapping: columnMapping,
-        failedItems: failedItems
+      console.log('📁 File selected:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
       });
-      
-      // ✅ Hiển thị chi tiết dù thành công hay thất bại
-      if (count === 0 && failedCount === 0) {
-        // Trường hợp file rỗng hoặc không có data
-        alert('⚠️ Không có dữ liệu để import!\n\n' +
-              'Vui lòng kiểm tra:\n' +
-              '- File có dữ liệu (không chỉ có header)?\n' +
-              '- Cột "TÊN SẢN PHẨM" và "SL" có giá trị?\n' +
-              '- Format file đúng Excel (.xlsx)?');
-      } else if (failedCount > 0 && count === 0) {
-        // Tất cả đều fail
-        const errorDetails = failedItems.slice(0, 10).map((item, idx) => 
-          `${idx + 1}. Row ${item.row}: ${item.error}`
-        ).join('\n');
-        
-        alert(`❌ Import THẤT BẠI - Tất cả ${failedCount} dòng bị lỗi!\n\n` +
-              `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}\n\n` +
-              `Detected Type: ${detectedType}\n` +
-              `Column Mapping: ${JSON.stringify(columnMapping, null, 2)}`);
-      } else if (failedCount > 0 && count > 0) {
-        // Một phần thành công, một phần fail
-        const errorDetails = failedItems.slice(0, 5).map((item, idx) => 
-          `${idx + 1}. Row ${item.row}: ${item.error}`
-        ).join('\n');
-        
-        alert(`⚠️ Import hoàn tất với một số lỗi!\n\n` +
-              `✅ Thành công: ${count}\n` +
-              `❌ Thất bại: ${failedCount}\n\n` +
-              `Chi tiết lỗi (5 dòng đầu):\n${errorDetails}`);
-      } else {
-        // Tất cả thành công
-        alert(`✅ Import thành công ${count} giao dịch ${detectedType === 'import' ? 'nhập' : 'xuất'} kho!`);
-      }
-      
-      // Reload transactions nếu có ít nhất 1 thành công
-      if (count > 0) {
-        await loadTransactions();
-      }
-      
-    } catch (error) {
-      console.error('❌ Error importing:', error);
-      console.error('Error response:', error.response);
-      console.error('Error data:', error.response?.data);
-      
-      const errorData = error.response?.data;
-      const errorMsg = errorData?.error || 
-                      errorData?.message || 
-                      error.message || 
-                      'Lỗi không xác định';
-      
-      const errorDetails = errorData?.details || '';
-      
-      alert('❌ Lỗi import Excel:\n\n' + 
-            errorMsg + 
-            (errorDetails ? '\n\nChi tiết:\n' + errorDetails : ''));
-    } finally {
-      setProcessing(false);
-    }
-  };
-  input.click();
-};
 
-  // ✅ THÊM HÀM handleEditTransaction
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel'
+      ];
+      
+      if (!validTypes.includes(file.type)) {
+        alert('❌ Chỉ chấp nhận file Excel (.xlsx, .xls)');
+        return;
+      }
+
+      try {
+        setProcessing(true);
+        console.log('🚀 Starting upload with type:', transactionType);
+        
+        const response = await transactionService.importExcel(file, transactionType);
+        
+        console.log('✅ Full Upload response:', response);
+        console.log('📊 Response data:', response.data);
+        
+        const data = response.data?.data || response.data;
+        const count = data?.successCount || 0;
+        const failedCount = data?.failedCount || 0;
+        const failedItems = data?.failedItems || [];
+        const detectedType = data?.detectedType || transactionType;
+        const columnMapping = data?.columnMapping || {};
+        
+        console.log('📈 Import summary:', {
+          successCount: count,
+          failedCount: failedCount,
+          detectedType: detectedType,
+          columnMapping: columnMapping,
+          failedItems: failedItems
+        });
+        
+        if (count === 0 && failedCount === 0) {
+          alert('⚠️ Không có dữ liệu để import!\n\n' +
+                'Vui lòng kiểm tra:\n' +
+                '- File có dữ liệu (không chỉ có header)?\n' +
+                '- Cột "TÊN SẢN PHẨM" và "SL" có giá trị?\n' +
+                '- Format file đúng Excel (.xlsx)?');
+        } else if (failedCount > 0 && count === 0) {
+          const errorDetails = failedItems.slice(0, 10).map((item, idx) => 
+            `${idx + 1}. Row ${item.row}: ${item.error}`
+          ).join('\n');
+          
+          alert(`❌ Import THẤT BẠI - Tất cả ${failedCount} dòng bị lỗi!\n\n` +
+                `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}\n\n` +
+                `Detected Type: ${detectedType}\n` +
+                `Column Mapping: ${JSON.stringify(columnMapping, null, 2)}`);
+        } else if (failedCount > 0 && count > 0) {
+          const errorDetails = failedItems.slice(0, 5).map((item, idx) => 
+            `${idx + 1}. Row ${item.row}: ${item.error}`
+          ).join('\n');
+          
+          alert(`⚠️ Import hoàn tất với một số lỗi!\n\n` +
+                `✅ Thành công: ${count}\n` +
+                `❌ Thất bại: ${failedCount}\n\n` +
+                `Chi tiết lỗi (5 dòng đầu):\n${errorDetails}`);
+        } else {
+          alert(`✅ Import thành công ${count} giao dịch ${detectedType === 'import' ? 'nhập' : 'xuất'} kho!`);
+        }
+        
+        if (count > 0) {
+          await loadTransactions();
+        }
+        
+      } catch (error) {
+        console.error('❌ Error importing:', error);
+        console.error('Error response:', error.response);
+        console.error('Error data:', error.response?.data);
+        
+        const errorData = error.response?.data;
+        const errorMsg = errorData?.error || 
+                        errorData?.message || 
+                        error.message || 
+                        'Lỗi không xác định';
+        
+        const errorDetails = errorData?.details || '';
+        
+        alert('❌ Lỗi import Excel:\n\n' + 
+              errorMsg + 
+              (errorDetails ? '\n\nChi tiết:\n' + errorDetails : ''));
+      } finally {
+        setProcessing(false);
+      }
+    };
+    input.click();
+  };
+
   const handleEditTransaction = (transaction) => {
     console.log('✏️ Editing transaction:', transaction);
     
@@ -219,7 +227,6 @@ const handleImportExcel = () => {
     setShowImportModal(true);
   };
 
-  // ✅ THÊM HÀM handleDeleteTransaction
   const handleDeleteTransaction = async (id) => {
     if (!window.confirm('⚠️ Bạn có chắc muốn xóa giao dịch này?')) return;
 
@@ -237,6 +244,7 @@ const handleImportExcel = () => {
     }
   };
 
+  // ✅ THÊM BATCH PROCESSING cho handleSubmitAll
   const handleSubmitAll = async () => {
     const validRows = rows.filter(r => r.productName && r.quantity);
     if (validRows.length === 0) {
@@ -246,43 +254,83 @@ const handleImportExcel = () => {
     if (!window.confirm(`Xác nhận ${isImport ? 'nhập' : 'xuất'} ${validRows.length} sản phẩm?`)) return;
 
     setProcessing(true);
+    
     try {
-      const transactionsToCreate = validRows.map(row => ({
-        date: row.date,
-        transactionCode: row.transactionCode,
-        summary: row.summary,
-        createdBy: row.createdBy,
-        sku: row.sku,
-        productName: row.productName,
-        quantity: parseFloat(row.quantity),
-        unitPrice: parseFloat(row.unitPrice) || 0,
-        reason: row.reason,
-        note: row.note,
-        type: transactionType
-      }));
-
-      console.log('🚀 Creating transactions:', transactionsToCreate);
-
-      const response = await transactionService.createBatch(transactionsToCreate);
-      const result = response.data;
+      const BATCH_SIZE = 50; // Xử lý 50 items mỗi lần
+      const batches = [];
       
-      if (result.failedCount > 0) {
-        console.error('❌ Failed items:', result.failedItems);
+      // Chia thành batches
+      for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
+        batches.push(validRows.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`📦 Processing ${batches.length} batches of ${BATCH_SIZE} items each`);
+      
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      const allFailedItems = [];
+      
+      // Xử lý tuần tự từng batch
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        console.log(`🔄 Processing batch ${i + 1}/${batches.length}...`);
         
-        const errorDetails = result.failedItems.map((item, idx) => 
+        const transactionsToCreate = batch.map(row => ({
+          date: row.date,
+          transactionCode: row.transactionCode,
+          summary: row.summary,
+          createdBy: row.createdBy,
+          sku: row.sku,
+          productName: row.productName,
+          quantity: parseFloat(row.quantity),
+          unitPrice: parseFloat(row.unitPrice) || 0,
+          reason: row.reason,
+          note: row.note,
+          type: transactionType
+        }));
+
+        try {
+          const response = await transactionService.createBatch(transactionsToCreate);
+          const result = response.data;
+          
+          totalSuccess += result.successCount || 0;
+          totalFailed += result.failedCount || 0;
+          
+          if (result.failedItems && result.failedItems.length > 0) {
+            allFailedItems.push(...result.failedItems);
+          }
+          
+          console.log(`✅ Batch ${i + 1} completed: ${result.successCount} success, ${result.failedCount} failed`);
+          
+          // Delay nhỏ giữa các batch để tránh overload
+          if (i < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } catch (batchError) {
+          console.error(`❌ Batch ${i + 1} failed:`, batchError);
+          totalFailed += batch.length;
+        }
+      }
+      
+      console.log(`📊 Final results: ${totalSuccess} success, ${totalFailed} failed`);
+      
+      // Hiển thị kết quả tổng hợp
+      if (totalFailed > 0) {
+        const errorDetails = allFailedItems.slice(0, 10).map((item, idx) => 
           `${idx + 1}. ${item.data?.productName || 'Unknown'}: ${item.error}`
         ).join('\n');
         
-        alert(`⚠️ Có ${result.failedCount}/${validRows.length} giao dịch thất bại!\n\n` +
-              `Thành công: ${result.successCount}\n\n` +
-              `Chi tiết lỗi:\n${errorDetails}`);
+        alert(`⚠️ Có ${totalFailed}/${validRows.length} giao dịch thất bại!\n\n` +
+              `✅ Thành công: ${totalSuccess}\n` +
+              `❌ Thất bại: ${totalFailed}\n\n` +
+              `Chi tiết lỗi (10 dòng đầu):\n${errorDetails}`);
       } else {
-        const count = result.successCount || result.count || validRows.length;
-        alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${count} sản phẩm!`);
+        alert(`✅ ${isImport ? 'Nhập' : 'Xuất'} kho thành công ${totalSuccess} sản phẩm!`);
       }
 
       await loadTransactions();
       
+      // Reset form
       setRows([{
         id: Date.now(),
         date: new Date().toISOString().split('T')[0],
@@ -365,6 +413,7 @@ const handleImportExcel = () => {
     }
   };
 
+  // ✅ THÊM BATCH PROCESSING cho handleDeleteAllFiltered
   const handleDeleteAllFiltered = async () => {
     if (filteredTransactions.length === 0) {
       alert('⚠️ Không có giao dịch nào để xóa!');
@@ -377,7 +426,24 @@ const handleImportExcel = () => {
       setProcessing(true);
       const filteredIds = filteredTransactions.map(t => t.id);
       
-      await transactionService.deleteMany(filteredIds);
+      const BATCH_SIZE = 100; // Xóa 100 items mỗi lần
+      const batches = [];
+      
+      for (let i = 0; i < filteredIds.length; i += BATCH_SIZE) {
+        batches.push(filteredIds.slice(i, i + BATCH_SIZE));
+      }
+      
+      console.log(`🗑️ Deleting ${batches.length} batches of ${BATCH_SIZE} items each`);
+      
+      for (let i = 0; i < batches.length; i++) {
+        console.log(`🔄 Deleting batch ${i + 1}/${batches.length}...`);
+        await transactionService.deleteMany(batches[i]);
+        
+        // Delay giữa các batch
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
       
       alert(`✅ Đã xóa ${filteredTransactions.length} giao dịch!`);
       
@@ -390,159 +456,187 @@ const handleImportExcel = () => {
     }
   };
 
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    const maxVisible = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+    
+    if (endPage - startPage < maxVisible - 1) {
+      startPage = Math.max(1, endPage - maxVisible + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="pagination-container">
+        <div className="pagination-info">
+          Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredTransactions.length)} / {filteredTransactions.length} giao dịch
+        </div>
+        
+        <div className="pagination-controls">
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+          >
+            ⏮️
+          </button>
+          
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            ◀️
+          </button>
+          
+          {startPage > 1 && (
+            <>
+              <button className="pagination-button" onClick={() => handlePageChange(1)}>
+                1
+              </button>
+              {startPage > 2 && <span style={{padding: '0 8px'}}>...</span>}
+            </>
+          )}
+          
+          {pageNumbers.map(num => (
+            <button
+              key={num}
+              className={`pagination-button ${currentPage === num ? 'active' : ''}`}
+              onClick={() => handlePageChange(num)}
+            >
+              {num}
+            </button>
+          ))}
+          
+          {endPage < totalPages && (
+            <>
+              {endPage < totalPages - 1 && <span style={{padding: '0 8px'}}>...</span>}
+              <button className="pagination-button" onClick={() => handlePageChange(totalPages)}>
+                {totalPages}
+              </button>
+            </>
+          )}
+          
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            ▶️
+          </button>
+          
+          <button
+            className="pagination-button"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            ⏭️
+          </button>
+          
+          <select 
+            className="page-size-select"
+            value={pageSize} 
+            onChange={handlePageSizeChange}
+          >
+            <option value="10">10 / trang</option>
+            <option value="20">20 / trang</option>
+            <option value="50">50 / trang</option>
+            <option value="100">100 / trang</option>
+          </select>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{
-          background: 'white',
-          padding: '48px',
-          borderRadius: '20px',
-          textAlign: 'center',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <div style={{ fontSize: '18px', fontWeight: '600', color: '#374151' }}>
-            Đang tải dữ liệu...
-          </div>
+      <div className="loading-container">
+        <div className="loading-card">
+          <div className="loading-icon">⏳</div>
+          <div className="loading-text">Đang tải dữ liệu...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '24px'
-    }}>
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderRadius: '20px',
-        padding: '32px',
-        marginBottom: '24px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
-      }}>
+    <div className="transaction-container">
+      <div className="header-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: '32px', 
-              fontWeight: '700',
-              background: isImport ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              marginBottom: '8px'
-            }}>
+            <h1 className={`header-title ${isImport ? 'import' : 'export'}`}>
               {isImport ? '📦 Quản Lý Nhập Kho' : '📤 Quản Lý Xuất Kho'}
             </h1>
-            <p style={{ margin: 0, color: '#6b7280', fontSize: '15px' }}>
+            <p className="header-subtitle">
               Theo dõi và quản lý các giao dịch {isImport ? 'nhập' : 'xuất'} kho một cách dễ dàng
             </p>
           </div>
         </div>
 
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          <div style={statsCardStyle}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
-              {stats.total}
-            </div>
-            <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>Tổng giao dịch</div>
+        <div className="stats-grid">
+          <div className="stats-card">
+            <div className="stats-icon">📊</div>
+            <div className="stats-value">{stats.total}</div>
+            <div className="stats-label">Tổng giao dịch</div>
           </div>
 
-          <div style={statsCardStyle}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>💰</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: isImport ? '#10b981' : '#ef4444', marginBottom: '4px' }}>
+          <div className="stats-card">
+            <div className="stats-icon">💰</div>
+            <div className={`stats-value currency ${isImport ? 'import-color' : 'export-color'}`}>
               {formatCurrency(stats.totalAmount)}
             </div>
-            <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>Tổng giá trị</div>
+            <div className="stats-label">Tổng giá trị</div>
           </div>
 
-          <div style={statsCardStyle}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📦</div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
-              {stats.totalProducts}
-            </div>
-            <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>Loại sản phẩm</div>
+          <div className="stats-card">
+            <div className="stats-icon">📦</div>
+            <div className="stats-value">{stats.totalProducts}</div>
+            <div className="stats-label">Loại sản phẩm</div>
           </div>
 
-          <div style={statsCardStyle}>
-            <div style={{ fontSize: '32px', marginBottom: '8px' }}>📅</div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>
-              {stats.thisMonth}
-            </div>
-            <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>Tháng này</div>
+          <div className="stats-card">
+            <div className="stats-icon">📅</div>
+            <div className="stats-value">{stats.thisMonth}</div>
+            <div className="stats-label">Tháng này</div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: '1 1 300px', position: 'relative' }}>
-            <div style={{
-              position: 'absolute',
-              left: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              fontSize: '18px',
-              color: '#9ca3af'
-            }}>🔍</div>
+        <div className="action-bar">
+          <div className="search-wrapper">
+            <div className="search-icon">🔍</div>
             <input
               type="text"
+              className="search-input"
               placeholder="Tìm kiếm mã phiếu, SKU, tên sản phẩm..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px 16px 14px 48px',
-                border: '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '15px',
-                outline: 'none',
-                transition: 'all 0.3s',
-                backgroundColor: '#f9fafb'
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.backgroundColor = 'white';
-                e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = '#e5e7eb';
-                e.target.style.backgroundColor = '#f9fafb';
-                e.target.style.boxShadow = 'none';
-              }}
             />
           </div>
 
-          <div style={{ position: 'relative' }}>
+          <div className="select-wrapper">
             <select
+              className="select-dropdown"
               value={filterGroup}
               onChange={e => setFilterGroup(e.target.value)}
-              style={{
-                padding: '14px 40px 14px 16px',
-                background: 'white',
-                border: '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontWeight: '500',
-                color: '#374151',
-                cursor: 'pointer',
-                outline: 'none',
-                appearance: 'none',
-                minWidth: '180px'
-              }}
             >
               {groups.map(g => (
                 <option key={g} value={g}>
@@ -550,158 +644,102 @@ const handleImportExcel = () => {
                 </option>
               ))}
             </select>
-            <div style={{
-              position: 'absolute',
-              right: '16px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none',
-              fontSize: '12px',
-              color: '#6b7280'
-            }}>▼</div>
+            <div className="select-arrow">▼</div>
           </div>
 
           <button
+            className="action-button delete"
             onClick={handleDeleteAllFiltered}
             disabled={processing}
-            style={{...actionButtonStyle('#fee2e2', '#ef4444', '#fca5a5'), opacity: processing ? 0.5 : 1}}
           >
-            <span style={{ fontSize: '18px' }}>🗑️</span>
+            <span>🗑️</span>
             <span>Xóa ({filteredTransactions.length})</span>
           </button>
 
           <button 
+            className="action-button import"
             onClick={handleImportExcel} 
             disabled={processing}
-            style={{...actionButtonStyle('#dbeafe', '#3b82f6', '#93c5fd'), opacity: processing ? 0.5 : 1}}
           >
-            <span style={{ fontSize: '18px' }}>📊</span>
+            <span>📊</span>
             <span>Import Excel</span>
           </button>
 
           <button 
+            className="action-button add"
             onClick={() => setShowImportModal(true)} 
             disabled={processing}
-            style={{...actionButtonStyle('#d1fae5', '#10b981', '#6ee7b7'), opacity: processing ? 0.5 : 1}}
           >
-            <span style={{ fontSize: '18px' }}>+</span>
+            <span>+</span>
             <span>{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}</span>
           </button>
         </div>
       </div>
 
-      <div style={{
-        background: 'white',
-        borderRadius: '20px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-        overflow: 'hidden'
-      }}>
-        <div style={{ overflow: 'auto', maxHeight: '65vh' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                position: 'sticky', 
-                top: 0, 
-                zIndex: 10 
-              }}>
-                <th style={modernHeaderStyle}>NGÀY</th>
-                <th style={modernHeaderStyle}>MÃ PHIẾU {isImport ? 'NHẬP' : 'XUẤT'}</th>
-                <th style={modernHeaderStyle}>TÓM TẮT</th>
-                <th style={modernHeaderStyle}>NGƯỜI LẬP</th>
-                <th style={modernHeaderStyle}>SKU</th>
-                <th style={modernHeaderStyle}>TÊN SẢN PHẨM</th>
-                <th style={modernHeaderStyle}>SL</th>
-                <th style={modernHeaderStyle}>ĐƠN GIÁ</th>
-                <th style={modernHeaderStyle}>THÀNH TIỀN</th>
-                <th style={modernHeaderStyle}>{lastColumnTitle}</th>
-                <th style={modernHeaderStyle}>GHI CHÚ</th>
-                <th style={modernHeaderStyle}>THAO TÁC</th>
+      <div className="table-container">
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead className="table-header">
+              <tr>
+                <th>NGÀY</th>
+                <th>MÃ PHIẾU {isImport ? 'NHẬP' : 'XUẤT'}</th>
+                <th>TÓM TẮT</th>
+                <th>NGƯỜI LẬP</th>
+                <th>SKU</th>
+                <th>TÊN SẢN PHẨM</th>
+                <th>SL</th>
+                <th>ĐƠN GIÁ</th>
+                <th>THÀNH TIỀN</th>
+                <th>{lastColumnTitle}</th>
+                <th>GHI CHÚ</th>
+                <th>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.length === 0 ? (
+              {paginatedTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan="12" style={{ 
-                    textAlign: 'center', 
-                    padding: '60px 20px',
-                    color: '#9ca3af'
-                  }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.5 }}>📋</div>
-                    <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
-                      Chưa có giao dịch
-                    </div>
-                    <div style={{ fontSize: '14px' }}>
+                  <td colSpan="12" className="empty-state">
+                    <div className="empty-icon">📋</div>
+                    <div className="empty-title">Chưa có giao dịch</div>
+                    <div className="empty-description">
                       Nhấn "{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}" để bắt đầu
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((t, i) => (
-                  <tr 
-                    key={t.id || i}
-                    style={{
-                      backgroundColor: 'white',
-                      transition: 'all 0.2s',
-                      borderBottom: '1px solid #f3f4f6'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f9fafb';
-                      e.currentTarget.style.transform = 'scale(1.005)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'white';
-                      e.currentTarget.style.transform = 'scale(1)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <td style={modernCellStyle}>{t.date || '-'}</td>
-                    <td style={{...modernCellStyle, fontWeight: '600', color: '#667eea'}}>
-                      {t.transactionCode || '-'}
+                paginatedTransactions.map((t, i) => (
+                  <tr key={t.id || i} className="table-row">
+                    <td className="table-cell">{t.date || '-'}</td>
+                    <td className="table-cell code">{t.transactionCode || '-'}</td>
+                    <td className="table-cell">{t.summary || '-'}</td>
+                    <td className="table-cell">{t.createdBy || '-'}</td>
+                    <td className="table-cell sku">{t.sku}</td>
+                    <td className="table-cell">{t.productName}</td>
+                    <td className="table-cell center">
+                      <span className="quantity-badge">{t.quantity}</span>
                     </td>
-                    <td style={modernCellStyle}>{t.summary || '-'}</td>
-                    <td style={modernCellStyle}>{t.createdBy || '-'}</td>
-                    <td style={{...modernCellStyle, fontFamily: 'monospace', fontWeight: '600'}}>
-                      {t.sku}
-                    </td>
-                    <td style={modernCellStyle}>{t.productName}</td>
-                    <td style={{...modernCellStyle, textAlign: 'center'}}>
-                      <span style={{
-                        padding: '4px 12px',
-                        backgroundColor: '#dbeafe',
-                        color: '#1e40af',
-                        borderRadius: '6px',
-                        fontWeight: '600',
-                        fontSize: '13px'
-                      }}>
-                        {t.quantity}
-                      </span>
-                    </td>
-                    <td style={{...modernCellStyle, textAlign: 'right'}}>
-                      {formatCurrency(t.unitPrice || 0)}
-                    </td>
-                    <td style={{...modernCellStyle, textAlign: 'right', fontWeight: '700'}}>
-                      <span style={{ color: isImport ? '#10b981' : '#ef4444' }}>
+                    <td className="table-cell right">{formatCurrency(t.unitPrice || 0)}</td>
+                    <td className="table-cell right">
+                      <span className={`amount-text ${isImport ? 'import' : 'export'}`}>
                         {formatCurrency((t.quantity || 0) * (t.unitPrice || 0))}
                       </span>
                     </td>
-                    <td style={modernCellStyle}>{t.reason || '-'}</td>
-                    <td style={modernCellStyle}>{t.note || '-'}</td>
-                    <td style={{...modernCellStyle, textAlign: 'center'}}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                    <td className="table-cell">{t.reason || '-'}</td>
+                    <td className="table-cell">{t.note || '-'}</td>
+                    <td className="table-cell center">
+                      <div className="button-group">
                         <button 
+                          className="mini-button edit"
                           onClick={() => handleEditTransaction(t)}
                           disabled={processing}
-                          style={{...miniButtonStyle('#dbeafe', '#3b82f6'), opacity: processing ? 0.5 : 1}}
                           title="Chỉnh sửa"
                         >
                           ✏️
                         </button>
                         <button 
+                          className="mini-button delete"
                           onClick={() => handleDeleteTransaction(t.id)}
                           disabled={processing}
-                          style={{...miniButtonStyle('#fee2e2', '#ef4444'), opacity: processing ? 0.5 : 1}}
                           title="Xóa"
                         >
                           🗑️
@@ -716,55 +754,24 @@ const handleImportExcel = () => {
         </div>
       </div>
 
+      {renderPagination()}
+
       {showImportModal && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          animation: 'fadeIn 0.3s ease'
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowImportModal(false);
-          }
-        }}
+        <div 
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowImportModal(false);
+            }
+          }}
         >
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '24px',
-            width: '100%',
-            maxWidth: '1600px',
-            height: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            animation: 'slideUp 0.3s ease'
-          }}>
-            <div style={{
-              padding: '24px 32px',
-              borderBottom: '1px solid #e5e7eb',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
+          <div className="modal-content">
+            <div className="modal-header">
               <div>
-                <h2 style={{ 
-                  margin: 0, 
-                  fontSize: '24px', 
-                  fontWeight: '700', 
-                  color: 'white',
-                  marginBottom: '4px'
-                }}>
+                <h2 className="modal-title">
                   {editingTransaction ? '✏️ Chỉnh Sửa Phiếu' : (isImport ? '📦 Thêm Phiếu Nhập Kho' : '📤 Thêm Phiếu Xuất Kho')}
                 </h2>
-                <p style={{ margin: 0, fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>
+                <p className="modal-subtitle">
                   {editingTransaction 
                     ? `Chỉnh sửa phiếu ${editingTransaction.transactionCode || '#' + editingTransaction.id}`
                     : `Nhập thông tin chi tiết các sản phẩm ${isImport ? 'nhập' : 'xuất'} kho`
@@ -772,6 +779,7 @@ const handleImportExcel = () => {
                 </p>
               </div>
               <button 
+                className="modal-close"
                 onClick={() => {
                   setShowImportModal(false);
                   setEditingTransaction(null);
@@ -788,26 +796,12 @@ const handleImportExcel = () => {
                     reason: '',
                     note: ''
                   }]);
-                 }}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: 'none',
-                  fontSize: '28px',
-                  cursor: 'pointer',
-                  color: 'white',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              >×</button>
+              >
+                ×
+              </button>
             </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div className="modal-body">
               {isImport ? (
                 <ImportManagement
                   rows={rows}
@@ -832,78 +826,8 @@ const handleImportExcel = () => {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }
-
-const statsCardStyle = {
-  background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
-  padding: '24px',
-  borderRadius: '16px',
-  border: '2px solid #f3f4f6',
-  textAlign: 'center',
-  transition: 'all 0.3s',
-  cursor: 'pointer'
-};
-
-const actionButtonStyle = (bgColor, textColor, hoverBg) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '14px 20px',
-  backgroundColor: bgColor,
-  color: textColor,
-  border: 'none',
-  borderRadius: '12px',
-  cursor: 'pointer',
-  fontSize: '15px',
-  fontWeight: '600',
-  transition: 'all 0.3s',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-});
-
-const modernHeaderStyle = {
-  padding: '16px 12px',
-  textAlign: 'left',
-  fontSize: '13px',
-  fontWeight: '700',
-  color: 'white',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-  whiteSpace: 'nowrap'
-};
-
-const modernCellStyle = {
-  padding: '16px 12px',
-  fontSize: '14px',
-  color: '#374151',
-  verticalAlign: 'middle'
-};
-
-const miniButtonStyle = (bgColor, hoverColor) => ({
-  padding: '8px',
-  backgroundColor: bgColor,
-  border: 'none',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  fontSize: '14px',
-  transition: 'all 0.2s',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minWidth: '32px',
-  height: '32px'
-});
 
 export default TransactionTab;
