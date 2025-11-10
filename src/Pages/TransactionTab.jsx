@@ -1,4 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Package, 
+  TrendingUp, 
+  Search, 
+  Trash2, 
+  FileSpreadsheet, 
+  Plus,
+  Edit2,
+  Calendar,
+  DollarSign,
+  Box,
+  FileText,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Filter,
+  BarChart3,
+  PackageOpen,
+  Inbox
+} from 'lucide-react';
 import ImportManagement from '../Components/ImportManagement';
 import ExportManagement from '../Components/ExportManagement';
 import { transactionService } from '../Services/TransactionServices';
@@ -47,7 +69,6 @@ function TransactionTab({
     try {
       setLoading(true);
       
-      // 🔥 Gọi API getByType - Backend sẽ trả TẤT CẢ
       const response = await transactionService.getByType(transactionType);
       
       const transactionsData = Array.isArray(response.data) 
@@ -57,7 +78,7 @@ function TransactionTab({
       console.log('✅ Loaded transactions:', transactionsData.length, 'items');
       
       setLocalTransactions(transactionsData);
-      setCurrentPage(1); // Reset về trang 1 khi load mới
+      setCurrentPage(1);
     } catch (error) {
       console.error('Error loading transactions:', error);
       setLocalTransactions([]);
@@ -69,7 +90,6 @@ function TransactionTab({
 
   const groups = ['all', ...new Set(products.map(p => p.group).filter(Boolean))];
 
-  // Filtered transactions
   const filteredTransactions = localTransactions.filter(t => {
     const matchSearch = !searchTerm || 
       t.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -79,7 +99,6 @@ function TransactionTab({
     return matchSearch && matchGroup;
   });
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredTransactions.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
@@ -244,7 +263,6 @@ function TransactionTab({
     }
   };
 
-  // ✅ THÊM BATCH PROCESSING cho handleSubmitAll
   const handleSubmitAll = async () => {
     const validRows = rows.filter(r => r.productName && r.quantity);
     if (validRows.length === 0) {
@@ -256,10 +274,9 @@ function TransactionTab({
     setProcessing(true);
     
     try {
-      const BATCH_SIZE = 50; // Xử lý 50 items mỗi lần
+      const BATCH_SIZE = 50;
       const batches = [];
       
-      // Chia thành batches
       for (let i = 0; i < validRows.length; i += BATCH_SIZE) {
         batches.push(validRows.slice(i, i + BATCH_SIZE));
       }
@@ -270,7 +287,6 @@ function TransactionTab({
       let totalFailed = 0;
       const allFailedItems = [];
       
-      // Xử lý tuần tự từng batch
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         console.log(`🔄 Processing batch ${i + 1}/${batches.length}...`);
@@ -302,7 +318,6 @@ function TransactionTab({
           
           console.log(`✅ Batch ${i + 1} completed: ${result.successCount} success, ${result.failedCount} failed`);
           
-          // Delay nhỏ giữa các batch để tránh overload
           if (i < batches.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 500));
           }
@@ -314,7 +329,6 @@ function TransactionTab({
       
       console.log(`📊 Final results: ${totalSuccess} success, ${totalFailed} failed`);
       
-      // Hiển thị kết quả tổng hợp
       if (totalFailed > 0) {
         const errorDetails = allFailedItems.slice(0, 10).map((item, idx) => 
           `${idx + 1}. ${item.data?.productName || 'Unknown'}: ${item.error}`
@@ -330,7 +344,6 @@ function TransactionTab({
 
       await loadTransactions();
       
-      // Reset form
       setRows([{
         id: Date.now(),
         date: new Date().toISOString().split('T')[0],
@@ -413,7 +426,6 @@ function TransactionTab({
     }
   };
 
-  // ✅ THÊM BATCH PROCESSING cho handleDeleteAllFiltered
   const handleDeleteAllFiltered = async () => {
     if (filteredTransactions.length === 0) {
       alert('⚠️ Không có giao dịch nào để xóa!');
@@ -426,7 +438,7 @@ function TransactionTab({
       setProcessing(true);
       const filteredIds = filteredTransactions.map(t => t.id);
       
-      const BATCH_SIZE = 100; // Xóa 100 items mỗi lần
+      const BATCH_SIZE = 100;
       const batches = [];
       
       for (let i = 0; i < filteredIds.length; i += BATCH_SIZE) {
@@ -439,7 +451,6 @@ function TransactionTab({
         console.log(`🔄 Deleting batch ${i + 1}/${batches.length}...`);
         await transactionService.deleteMany(batches[i]);
         
-        // Delay giữa các batch
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 300));
         }
@@ -456,7 +467,6 @@ function TransactionTab({
     }
   };
 
-  // Pagination handlers
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -497,7 +507,7 @@ function TransactionTab({
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            ⏮️
+            <ChevronsLeft size={16} />
           </button>
           
           <button
@@ -505,7 +515,7 @@ function TransactionTab({
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ◀️
+            <ChevronLeft size={16} />
           </button>
           
           {startPage > 1 && (
@@ -541,7 +551,7 @@ function TransactionTab({
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            ▶️
+            <ChevronRight size={16} />
           </button>
           
           <button
@@ -549,7 +559,7 @@ function TransactionTab({
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            ⏭️
+            <ChevronsRight size={16} />
           </button>
           
           <select 
@@ -571,7 +581,9 @@ function TransactionTab({
     return (
       <div className="loading-container">
         <div className="loading-card">
-          <div className="loading-icon">⏳</div>
+          <div className="loading-icon">
+            <Package size={48} className="animate-pulse" />
+          </div>
           <div className="loading-text">Đang tải dữ liệu...</div>
         </div>
       </div>
@@ -584,7 +596,8 @@ function TransactionTab({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
             <h1 className={`header-title ${isImport ? 'import' : 'export'}`}>
-              {isImport ? '📦 Quản Lý Nhập Kho' : '📤 Quản Lý Xuất Kho'}
+              {isImport ? <Inbox size={32} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={32} style={{display: 'inline', marginRight: '8px'}} />}
+              {isImport ? 'Quản Lý Nhập Kho' : 'Quản Lý Xuất Kho'}
             </h1>
             <p className="header-subtitle">
               Theo dõi và quản lý các giao dịch {isImport ? 'nhập' : 'xuất'} kho một cách dễ dàng
@@ -594,13 +607,17 @@ function TransactionTab({
 
         <div className="stats-grid">
           <div className="stats-card">
-            <div className="stats-icon">📊</div>
+            <div className="stats-icon">
+              <BarChart3 size={28} />
+            </div>
             <div className="stats-value">{stats.total}</div>
             <div className="stats-label">Tổng giao dịch</div>
           </div>
 
           <div className="stats-card">
-            <div className="stats-icon">💰</div>
+            <div className="stats-icon">
+              <DollarSign size={28} />
+            </div>
             <div className={`stats-value currency ${isImport ? 'import-color' : 'export-color'}`}>
               {formatCurrency(stats.totalAmount)}
             </div>
@@ -608,13 +625,17 @@ function TransactionTab({
           </div>
 
           <div className="stats-card">
-            <div className="stats-icon">📦</div>
+            <div className="stats-icon">
+              <Box size={28} />
+            </div>
             <div className="stats-value">{stats.totalProducts}</div>
             <div className="stats-label">Loại sản phẩm</div>
           </div>
 
           <div className="stats-card">
-            <div className="stats-icon">📅</div>
+            <div className="stats-icon">
+              <Calendar size={28} />
+            </div>
             <div className="stats-value">{stats.thisMonth}</div>
             <div className="stats-label">Tháng này</div>
           </div>
@@ -622,7 +643,9 @@ function TransactionTab({
 
         <div className="action-bar">
           <div className="search-wrapper">
-            <div className="search-icon">🔍</div>
+            <div className="search-icon">
+              <Search size={18} />
+            </div>
             <input
               type="text"
               className="search-input"
@@ -633,14 +656,16 @@ function TransactionTab({
           </div>
 
           <div className="select-wrapper">
+            <Filter size={16} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280'}} />
             <select
               className="select-dropdown"
               value={filterGroup}
               onChange={e => setFilterGroup(e.target.value)}
+              style={{paddingLeft: '36px'}}
             >
               {groups.map(g => (
                 <option key={g} value={g}>
-                  {g === 'all' ? '🎯 Tất cả nhóm' : `📂 ${g}`}
+                  {g === 'all' ? 'Tất cả nhóm' : g}
                 </option>
               ))}
             </select>
@@ -652,7 +677,7 @@ function TransactionTab({
             onClick={handleDeleteAllFiltered}
             disabled={processing}
           >
-            <span>🗑️</span>
+            <Trash2 size={18} />
             <span>Xóa ({filteredTransactions.length})</span>
           </button>
 
@@ -661,7 +686,7 @@ function TransactionTab({
             onClick={handleImportExcel} 
             disabled={processing}
           >
-            <span>📊</span>
+            <FileSpreadsheet size={18} />
             <span>Import Excel</span>
           </button>
 
@@ -670,7 +695,7 @@ function TransactionTab({
             onClick={() => setShowImportModal(true)} 
             disabled={processing}
           >
-            <span>+</span>
+            <Plus size={18} />
             <span>{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}</span>
           </button>
         </div>
@@ -699,7 +724,9 @@ function TransactionTab({
               {paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan="12" className="empty-state">
-                    <div className="empty-icon">📋</div>
+                    <div className="empty-icon">
+                      <FileText size={48} strokeWidth={1.5} />
+                    </div>
                     <div className="empty-title">Chưa có giao dịch</div>
                     <div className="empty-description">
                       Nhấn "{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}" để bắt đầu
@@ -734,7 +761,7 @@ function TransactionTab({
                           disabled={processing}
                           title="Chỉnh sửa"
                         >
-                          ✏️
+                          <Edit2 size={16} />
                         </button>
                         <button 
                           className="mini-button delete"
@@ -742,7 +769,7 @@ function TransactionTab({
                           disabled={processing}
                           title="Xóa"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -769,7 +796,17 @@ function TransactionTab({
             <div className="modal-header">
               <div>
                 <h2 className="modal-title">
-                  {editingTransaction ? '✏️ Chỉnh Sửa Phiếu' : (isImport ? '📦 Thêm Phiếu Nhập Kho' : '📤 Thêm Phiếu Xuất Kho')}
+                  {editingTransaction ? (
+                    <>
+                      <Edit2 size={24} style={{display: 'inline', marginRight: '8px'}} />
+                      Chỉnh Sửa Phiếu
+                    </>
+                  ) : (
+                    <>
+                      {isImport ? <Inbox size={24} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={24} style={{display: 'inline', marginRight: '8px'}} />}
+                      {isImport ? 'Thêm Phiếu Nhập Kho' : 'Thêm Phiếu Xuất Kho'}
+                    </>
+                  )}
                 </h2>
                 <p className="modal-subtitle">
                   {editingTransaction 
@@ -798,7 +835,7 @@ function TransactionTab({
                   }]);
                 }}
               >
-                ×
+                <X size={24} />
               </button>
             </div>
             <div className="modal-body">

@@ -1,5 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { 
+  Package, 
+  DollarSign, 
+  AlertTriangle,
+  Filter,
+  Upload,
+  Download,
+  Trash2,
+  Plus,
+  X,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ChevronDown,
+  Loader2
+} from 'lucide-react';
 import { inventoryService } from '../Services/InventoryServices';
 import "../assets/styles/Product.css";
 import "../assets/styles/Common.css";
@@ -494,7 +510,10 @@ function InventoryTab({
           borderRadius: '12px',
           color: 'white'
         }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Tổng sản phẩm</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <Package size={28} />
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>Tổng sản phẩm</div>
+          </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{totalItems}</div>
         </div>
         
@@ -504,7 +523,10 @@ function InventoryTab({
           borderRadius: '12px',
           color: 'white'
         }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Giá trị tồn kho</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <DollarSign size={28} />
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>Giá trị tồn kho</div>
+          </div>
           <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
             {(totalValue / 1000000).toFixed(1)}M
           </div>
@@ -516,7 +538,10 @@ function InventoryTab({
           borderRadius: '12px',
           color: 'white'
         }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Tồn kho thấp</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <AlertTriangle size={28} />
+            <div style={{ fontSize: '14px', opacity: 0.9 }}>Tồn kho thấp</div>
+          </div>
           <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{lowStockCount}</div>
         </div>
       </div>
@@ -533,9 +558,9 @@ function InventoryTab({
             <button
               className="btn-secondary"
               onClick={() => setShowFilterMenu(!showFilterMenu)}
-              style={{ position: 'relative' }}
+              style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>🔽</span>
+              <Filter size={18} />
               <span>Bộ Lọc</span>
               {activeFilters.length > 0 && (
                 <span style={{
@@ -600,13 +625,14 @@ function InventoryTab({
                         style={{
                           background: 'none',
                           border: 'none',
-                          fontSize: '20px',
                           cursor: 'pointer',
                           color: '#6b7280',
-                          padding: '0'
+                          padding: '0',
+                          display: 'flex',
+                          alignItems: 'center'
                         }}
                       >
-                        ×
+                        <X size={20} />
                       </button>
                     </div>
                     
@@ -689,9 +715,14 @@ function InventoryTab({
                           fontSize: '13px',
                           fontWeight: '500',
                           color: '#6b7280',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
                         }}
                       >
+                        <X size={16} />
                         Xóa tất cả bộ lọc
                       </button>
                     )}
@@ -704,32 +735,36 @@ function InventoryTab({
               className="btn-import"
               onClick={handleImportClick}
               disabled={importing}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>📥</span>
+              {importing ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
               <span>{importing ? 'Đang import...' : 'Import'}</span>
             </button>
             
             <button
               className="btn-export"
               onClick={handleExportClick}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>📤</span>
+              <Download size={18} />
               <span>Export</span>
             </button>
             
             <button
               className="btn-danger"
               onClick={handleDeleteAllClick}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>🗑️</span>
+              <Trash2 size={18} />
               <span>Xóa Tất Cả</span>
             </button>
             
             <button
               className="btn-primary"
               onClick={() => setShowAddForm(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>➕</span>
+              <Plus size={18} />
               <span>Thêm Tồn Kho</span>
             </button>
           </div>
@@ -773,7 +808,6 @@ function InventoryTab({
                     width: '16px',
                     height: '16px',
                     cursor: 'pointer',
-                    fontSize: '12px',
                     color: 'white',
                     display: 'flex',
                     alignItems: 'center',
@@ -781,7 +815,7 @@ function InventoryTab({
                     padding: '0'
                   }}
                 >
-                  ×
+                  <X size={12} />
                 </button>
               </span>
             ))}
@@ -800,9 +834,13 @@ function InventoryTab({
               justifyContent: 'space-between', 
               marginBottom: '8px',
               fontSize: '13px',
-              color: '#0369a1'
+              color: '#0369a1',
+              alignItems: 'center'
             }}>
-              <span>{progress.message}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Loader2 size={16} className="animate-spin" />
+                {progress.message}
+              </span>
               <span>{progress.current} / {progress.total}</span>
             </div>
             <div style={{ 
@@ -883,14 +921,27 @@ function InventoryTab({
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ 
-                margin: '0 0 16px 0', 
-                fontSize: '20px', 
-                fontWeight: '600',
-                color: '#dc2626'
-              }}>
-                ⚠️ Xác nhận xóa tất cả
-              </h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <AlertTriangle size={24} color="#dc2626" />
+                </div>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: '#dc2626'
+                }}>
+                  Xác nhận xóa tất cả
+                </h3>
+              </div>
               
               <p style={{ 
                 margin: '0 0 20px 0', 
@@ -918,9 +969,13 @@ function InventoryTab({
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: isDeleting ? 'not-allowed' : 'pointer',
-                    opacity: isDeleting ? 0.5 : 1
+                    opacity: isDeleting ? 0.5 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
+                  <X size={16} />
                   Hủy
                 </button>
                 
@@ -936,10 +991,23 @@ function InventoryTab({
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: isDeleting ? 'not-allowed' : 'pointer',
-                    opacity: isDeleting ? 0.7 : 1
+                    opacity: isDeleting ? 0.7 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  {isDeleting ? 'Đang xóa...' : 'Xóa tất cả'}
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Đang xóa...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Xóa tất cả
+                    </>
+                  )}
                 </button>
               </div>
             </div>
