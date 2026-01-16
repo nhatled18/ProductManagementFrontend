@@ -1,194 +1,19 @@
-/* Dashboard.css - Modern Design with Auto-Hide Sidebar */
+/* Dashboard.css - Main Content Layout */
 
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  position: relative;
-}
-
-/* ===== SIDEBAR TRIGGER - Vùng kích hoạt ===== */
-.sidebar-trigger {
-  position: fixed;
-  left: 0;
-  top: 80px;
-  width: 15px;
-  height: calc(100vh - 80px);
-  z-index: 50;
-  background: transparent;
-  cursor: pointer;
-}
-
-/* Icon indicator cho sidebar */
-.sidebar-trigger::after {
-  content: '☰';
-  position: absolute;
-  left: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 18px;
-  color: rgba(102, 126, 234, 0.7);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  background: white;
-  padding: 8px 4px;
-  border-radius: 4px;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-trigger:hover::after {
-  opacity: 1;
-  color: rgba(102, 126, 234, 1);
-  box-shadow: 2px 0 12px rgba(102, 126, 234, 0.3);
-}
-
-/* ===== SIDEBAR NAVIGATION - AUTO HIDE ===== */
-.tabs-vertical {
-  width: 80px; /* Tăng lên để icon có không gian */
-  background: white;
-  padding: 30px 10px;
-  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.15);
-  display: flex;
   flex-direction: column;
-  gap: 12px;
-  position: fixed;
-  top: 80px;
-  left: 0;
-  height: calc(100vh - 80px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  z-index: 100;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Mở rộng khi hover */
-.tabs-vertical:hover {
-  width: 280px;
-  padding: 30px 20px;
-  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2);
-}
-
-/* Hover vào trigger cũng mở rộng sidebar */
-.sidebar-trigger:hover + .tabs-vertical {
-  width: 280px;
-  padding: 30px 20px;
-  box-shadow: 4px 0 40px rgba(0, 0, 0, 0.2);
-}
-
-/* ===== TAB ITEMS ===== */
-.tab-vertical {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 12px;
-  border-radius: 14px;
-  text-decoration: none;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 15px;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-  justify-content: center;
-}
-
-/* ✅ ICON - Lucide React component */
-.tab-vertical svg {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  min-width: 22px; /* Đảm bảo icon không bị co lại */
-  transition: all 0.3s ease;
-}
-
-/* ✅ TEXT - span element */
-.tab-vertical span {
-  opacity: 0;
-  width: 0;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  display: inline-block;
-  white-space: nowrap;
-}
-
-/* Hiện text khi sidebar mở rộng */
-.tabs-vertical:hover .tab-vertical,
-.sidebar-trigger:hover + .tabs-vertical .tab-vertical {
-  justify-content: flex-start;
-  padding: 14px 20px;
-}
-
-.tabs-vertical:hover .tab-vertical span,
-.sidebar-trigger:hover + .tabs-vertical .tab-vertical span {
-  opacity: 1;
-  width: auto;
-  margin-left: 0;
-}
-
-/* Decorative bar */
-.tab-vertical::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transform: scaleY(0);
-  transition: transform 0.3s ease;
-}
-
-/* Hover effect */
-.tab-vertical:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  color: #667eea;
-  transform: translateX(4px);
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
-}
-
-.tab-vertical:hover::before {
-  transform: scaleY(1);
-}
-
-.tab-vertical:hover svg {
-  transform: scale(1.1);
-  color: #667eea;
-}
-
-/* Active state */
-.tab-vertical.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-  animation: slideIn 0.3s ease;
-}
-
-.tab-vertical.active svg {
-  color: white;
-}
-
-.tab-vertical.active::before {
-  transform: scaleY(1);
-  background: rgba(255, 255, 255, 0.3);
   width: 100%;
-}
-
-/* ===== MAIN CONTENT AREA ===== */
-.dashboard-new {
-  flex: 1;
-  padding: 30px;
-  margin-left: 80px; /* Cập nhật theo width mới */
-  overflow-y: auto;
-  width: calc(100% - 80px);
-  min-height: 100vh;
-  transition: margin-left 0.3s ease;
+  height: 100%;
+  background: #f5f7fa;
+  overflow: hidden;
 }
 
 .dashboard-content {
-  max-width: 1600px;
-  margin: 0 auto;
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  width: 100%;
   animation: fadeIn 0.5s ease;
 }
 
@@ -203,140 +28,31 @@
   }
 }
 
-/* ===== SCROLLBAR STYLING ===== */
-.tabs-vertical::-webkit-scrollbar,
-.dashboard-new::-webkit-scrollbar {
-  width: 6px;
+/* Scrollbar styling */
+.dashboard-content::-webkit-scrollbar {
+  width: 8px;
 }
 
-.tabs-vertical::-webkit-scrollbar-track,
-.dashboard-new::-webkit-scrollbar-track {
-  background: transparent;
+.dashboard-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
   border-radius: 10px;
 }
 
-.tabs-vertical::-webkit-scrollbar-thumb,
-.dashboard-new::-webkit-scrollbar-thumb {
+.dashboard-content::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 10px;
 }
 
-.tabs-vertical::-webkit-scrollbar-thumb:hover,
-.dashboard-new::-webkit-scrollbar-thumb:hover {
+.dashboard-content::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(135deg, #5568d3 0%, #6a4193 100%);
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1024px) {
-  .tabs-vertical {
-    width: 70px;
-  }
-
-  .tabs-vertical:hover {
-    width: 240px;
-  }
-
-  .dashboard-new {
-    margin-left: 70px;
-    padding: 20px;
-  }
-}
-
-@media (max-width: 768px) {
-  .dashboard-layout {
-    flex-direction: column;
-  }
-
-  .sidebar-trigger {
-    display: none;
-  }
-
-  .tabs-vertical {
-    width: 100%;
-    height: auto;
-    position: relative;
-    top: 0;
-    left: 0;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 15px;
-    gap: 10px;
-  }
-
-  .tab-vertical {
-    flex-shrink: 0;
-    min-width: auto;
-    justify-content: center;
-    padding: 12px 16px;
-  }
-
-  .tab-vertical svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .tab-vertical span {
-    opacity: 1;
-    width: auto;
-    font-size: 13px;
-  }
-
-  .tab-vertical::before {
-    width: 100%;
-    height: 3px;
-    top: auto;
-    bottom: 0;
-    transform: scaleX(0);
-  }
-
-  .tab-vertical:hover::before,
-  .tab-vertical.active::before {
-    transform: scaleX(1);
-  }
-
-  .tab-vertical:hover {
-    transform: translateX(0) translateY(-2px);
-  }
-
-  .dashboard-new {
-    padding: 15px;
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .tabs-vertical::-webkit-scrollbar {
-    height: 4px;
-  }
-}
-
-@media (max-width: 480px) {
-  .tab-vertical {
-    padding: 10px 12px;
-    font-size: 12px;
-  }
-
-  .tab-vertical svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .dashboard-new {
-    padding: 12px;
-  }
-}
-
-/* ===== LOADING & EMPTY STATES ===== */
-.dashboard-content.loading {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
+/* Loading state */
 .loading {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  min-height: 80vh;
   font-size: 18px;
   color: #64748b;
 }
@@ -347,11 +63,12 @@
   justify-content: center;
   align-items: center;
   gap: 16px;
-  min-height: 100vh;
+  min-height: 80vh;
+  text-align: center;
 }
 
 .btn-primary {
-  padding: 12px 24px;
+  padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -367,55 +84,15 @@
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-.dashboard-empty {
-  text-align: center;
-  padding: 80px 20px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-}
-
-.dashboard-empty-icon {
-  font-size: 80px;
-  margin-bottom: 20px;
-  opacity: 0.5;
-}
-
-.dashboard-empty h3 {
-  font-size: 24px;
-  color: #1f2937;
-  margin: 0 0 10px 0;
-}
-
-.dashboard-empty p {
-  font-size: 16px;
-  color: #9ca3af;
-  margin: 0;
-}
-
-/* ===== ANIMATIONS ===== */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
+/* Responsive design */
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 1rem;
   }
 }
 
-@keyframes pageTransition {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
+@media (max-width: 480px) {
+  .dashboard-content {
+    padding: 0.75rem;
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.dashboard-content > * {
-  animation: pageTransition 0.4s ease;
 }

@@ -21,6 +21,11 @@ export const transactionService = {
     return apiClient.post('/transactions/batch', { transactions });
   },
 
+  // 🔥 Điều chỉnh kho (hàng hư, mất, adjust)
+  createAdjustment: (adjustmentData) => {
+    return apiClient.post('/transactions/adjust', adjustmentData);
+  },
+
   // Cập nhật transaction
   update: (id, transactionData) => {
     return apiClient.put(`/transactions/${id}`, transactionData);

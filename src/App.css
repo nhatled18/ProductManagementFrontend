@@ -1,4 +1,4 @@
-/* styles/App.css - Global Styles Only */
+/* App.css - Global Styles */
 * {
   margin: 0;
   padding: 0;
@@ -22,7 +22,28 @@ body {
   height: 100%;
 }
 
-.app {
+.App {
+  display: flex;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  background: #f5f7fa;
+}
+
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: margin-left 0.3s ease;
+}
+
+.app-content.with-sidebar {
+  margin-left: 280px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .app-content.with-sidebar {
+    margin-left: 0;
+  }
 }

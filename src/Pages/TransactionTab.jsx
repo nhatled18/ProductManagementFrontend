@@ -23,17 +23,21 @@ import {
 } from 'lucide-react';
 import ImportManagement from '../Components/ImportManagement';
 import ExportManagement from '../Components/ExportManagement';
+import AdjustmentForm from '../Components/AdjustmentForm';
 import { transactionService } from '../Services/TransactionServices';
 import "../assets/styles/TransactionTab.css";
 
 function TransactionTab({ 
   products = [], 
   currentUser, 
-  type = 'import',
-  defaultType = 'import'
+  type = 'export',
+  defaultType = 'export',
+  onTransactionComplete  // ✅ FIX 1: Thêm prop callback
 }) {
   const transactionType = type || defaultType;
   const isImport = transactionType === 'import';
+  const isAdjust = transactionType === 'adjust';
+  const isExport = transactionType === 'export';
   const lastColumnTitle = isImport ? 'NGUỒN NHẬP' : 'LÝ DO XUẤT';
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,10 +76,10 @@ function TransactionTab({
 
   // OPTIMIZED BATCH SIZES for Vercel Serverless
   const BATCH_CONFIG = {
-    IMPORT_EXCEL: 20,      // Small batch for file processing
-    SUBMIT_BATCH: 25,      // Medium batch for creating transactions
-    DELETE_BATCH: 50,      // Larger batch for simple deletes
-    DELAY_MS: 500          // Delay between batches to avoid rate limits
+    IMPORT_EXCEL: 20,
+    SUBMIT_BATCH: 25,
+    DELETE_BATCH: 50,
+    DELAY_MS: 500
   };
 
   useEffect(() => {
@@ -85,6 +89,13 @@ function TransactionTab({
   const loadTransactions = async () => {
     try {
       setLoading(true);
+      
+      if (isAdjust) {
+        setLocalTransactions([]);
+        setCurrentPage(1);
+        setLoading(false);
+        return;
+      }
       
       const response = await transactionService.getByType(transactionType);
       
@@ -165,7 +176,6 @@ function TransactionTab({
       try {
         setProcessing(true);
         
-        // Show progress dialog
         setShowBatchProgress(true);
         setBatchProgress({
           current: 0,
@@ -177,7 +187,6 @@ function TransactionTab({
         console.log('🚀 Starting upload with type:', transactionType);
         console.log(`📦 Using batch size: ${BATCH_CONFIG.IMPORT_EXCEL} items per batch`);
         
-        // Update progress: Reading file
         setBatchProgress({
           current: 1,
           total: 3,
@@ -187,7 +196,6 @@ function TransactionTab({
         
         const response = await transactionService.importExcel(file, transactionType);
         
-        // Update progress: Processing
         setBatchProgress({
           current: 2,
           total: 3,
@@ -205,7 +213,6 @@ function TransactionTab({
         const detectedType = data?.detectedType || transactionType;
         const columnMapping = data?.columnMapping || {};
         
-        // Complete progress
         setBatchProgress({
           current: 3,
           total: 3,
@@ -213,7 +220,6 @@ function TransactionTab({
           percentage: 100
         });
         
-        // Small delay to show completion
         await new Promise(resolve => setTimeout(resolve, 500));
         
         setShowBatchProgress(false);
@@ -256,6 +262,12 @@ function TransactionTab({
         
         if (count > 0) {
           await loadTransactions();
+          
+          // ✅ FIX 2: Gọi callback để Dashboard refresh inventory
+          if (onTransactionComplete) {
+            console.log('🔄 [TRANSACTION] Triggering Dashboard refresh...');
+            await onTransactionComplete();
+          }
         }
         
       } catch (error) {
@@ -314,6 +326,12 @@ function TransactionTab({
       
       alert('✅ Đã xóa giao dịch!');
       await loadTransactions();
+      
+      // ✅ FIX 3: Refresh inventory sau khi xóa
+      if (onTransactionComplete) {
+        console.log('🔄 [TRANSACTION] Triggering Dashboard refresh after delete...');
+        await onTransactionComplete();
+      }
     } catch (error) {
       console.error('Error deleting transaction:', error);
       alert('❌ Có lỗi khi xóa: ' + (error.response?.data?.message || error.message));
@@ -342,7 +360,6 @@ function TransactionTab({
       
       console.log(`📦 Processing ${batches.length} batches of ${BATCH_SIZE} items each`);
       
-      // Show progress dialog
       setShowBatchProgress(true);
       setBatchProgress({
         current: 0,
@@ -359,7 +376,6 @@ function TransactionTab({
         const batch = batches[i];
         console.log(`🔄 Processing batch ${i + 1}/${batches.length}...`);
         
-        // Update progress
         setBatchProgress({
           current: i,
           total: batches.length,
@@ -403,7 +419,6 @@ function TransactionTab({
         }
       }
       
-      // Complete progress
       setBatchProgress({
         current: batches.length,
         total: batches.length,
@@ -432,6 +447,12 @@ function TransactionTab({
       }
 
       await loadTransactions();
+      
+      // ✅ FIX 4: Gọi callback để Dashboard refresh inventory
+      if (onTransactionComplete) {
+        console.log('🔄 [TRANSACTION] Triggering Dashboard refresh after manual submit...');
+        await onTransactionComplete();
+      }
       
       setRows([{
         id: Date.now(),
@@ -491,6 +512,12 @@ function TransactionTab({
       alert('✅ Đã cập nhật giao dịch thành công!');
       
       await loadTransactions();
+      
+      // ✅ FIX 5: Refresh inventory sau khi edit
+      if (onTransactionComplete) {
+        console.log('🔄 [TRANSACTION] Triggering Dashboard refresh after edit...');
+        await onTransactionComplete();
+      }
 
       setShowImportModal(false);
       setEditingTransaction(null);
@@ -537,7 +564,6 @@ function TransactionTab({
       
       console.log(`🗑️ Deleting ${batches.length} batches of ${BATCH_SIZE} items each`);
       
-      // Show progress dialog
       setShowBatchProgress(true);
       setBatchProgress({
         current: 0,
@@ -549,7 +575,6 @@ function TransactionTab({
       for (let i = 0; i < batches.length; i++) {
         console.log(`🔄 Deleting batch ${i + 1}/${batches.length}...`);
         
-        // Update progress
         setBatchProgress({
           current: i,
           total: batches.length,
@@ -564,7 +589,6 @@ function TransactionTab({
         }
       }
       
-      // Complete progress
       setBatchProgress({
         current: batches.length,
         total: batches.length,
@@ -579,6 +603,12 @@ function TransactionTab({
             `🗑️ Đã xử lý: ${batches.length} batches (${BATCH_SIZE} items/batch)`);
       
       await loadTransactions();
+      
+      // ✅ FIX 6: Refresh inventory sau khi xóa hàng loạt
+      if (onTransactionComplete) {
+        console.log('🔄 [TRANSACTION] Triggering Dashboard refresh after batch delete...');
+        await onTransactionComplete();
+      }
     } catch (error) {
       console.error('Error deleting all:', error);
       setShowBatchProgress(false);
@@ -713,452 +743,460 @@ function TransactionTab({
 
   return (
     <div className="transaction-container">
-      <div className="header-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h1 className={`header-title ${isImport ? 'import' : 'export'}`}>
-              {isImport ? <Inbox size={32} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={32} style={{display: 'inline', marginRight: '8px'}} />}
-              {isImport ? 'Quản Lý Nhập Kho' : 'Quản Lý Xuất Kho'}
-            </h1>
-            <p className="header-subtitle">
-              Theo dõi và quản lý các giao dịch {isImport ? 'nhập' : 'xuất'} kho một cách dễ dàng
-            </p>
-          </div>
+      {/* ✅ ĐIỀU CHỈNH KHO - Hiển thị form trực tiếp */}
+      {isAdjust ? (
+        <div className="header-card">
+          <AdjustmentForm
+            products={products}
+            currentUser={currentUser}
+            onComplete={loadTransactions}
+          />
         </div>
-
-        <div className="stats-grid">
-          <div className="stats-card">
-            <div className="stats-icon">
-              <BarChart3 size={28} />
-            </div>
-            <div className="stats-value">{stats.total}</div>
-            <div className="stats-label">Tổng giao dịch</div>
-          </div>
-
-          <div className="stats-card">
-            <div className="stats-icon">
-              <DollarSign size={28} />
-            </div>
-            <div className={`stats-value currency ${isImport ? 'import-color' : 'export-color'}`}>
-              {formatCurrency(stats.totalAmount)}
-            </div>
-            <div className="stats-label">Tổng giá trị</div>
-          </div>
-
-          <div className="stats-card">
-            <div className="stats-icon">
-              <Box size={28} />
-            </div>
-            <div className="stats-value">{stats.totalProducts}</div>
-            <div className="stats-label">Loại sản phẩm</div>
-          </div>
-
-          <div className="stats-card">
-            <div className="stats-icon">
-              <Calendar size={28} />
-            </div>
-            <div className="stats-value">{stats.thisMonth}</div>
-            <div className="stats-label">Tháng này</div>
-          </div>
-        </div>
-
-        <div className="action-bar">
-          <div className="search-wrapper">
-            <div className="search-icon">
-              <Search size={18} />
-            </div>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Tìm kiếm mã phiếu, SKU, tên sản phẩm..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="select-wrapper">
-            <Filter size={16} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280'}} />
-            <select
-              className="select-dropdown"
-              value={filterGroup}
-              onChange={e => setFilterGroup(e.target.value)}
-              style={{paddingLeft: '36px'}}
-            >
-              {groups.map(g => (
-                <option key={g} value={g}>
-                  {g === 'all' ? 'Tất cả nhóm' : g}
-                </option>
-              ))}
-            </select>
-            <div className="select-arrow">▼</div>
-          </div>
-
-          <button
-            className="action-button delete"
-            onClick={handleDeleteAllFiltered}
-            disabled={processing}
-          >
-            <Trash2 size={18} />
-            <span>Xóa ({filteredTransactions.length})</span>
-          </button>
-
-          <button 
-            className="action-button import"
-            onClick={handleImportExcel} 
-            disabled={processing}
-          >
-            <FileSpreadsheet size={18} />
-            <span>Import Excel</span>
-          </button>
-
-          <button 
-            className="action-button add"
-            onClick={() => setShowImportModal(true)} 
-            disabled={processing}
-          >
-            <Plus size={18} />
-            <span>{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="table-container">
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead className="table-header">
-              <tr>
-                <th>NGÀY</th>
-                <th>MÃ PHIẾU {isImport ? 'NHẬP' : 'XUẤT'}</th>
-                <th>TÓM TẮT</th>
-                <th>NGƯỜI LẬP</th>
-                <th>SKU</th>
-                <th>TÊN SẢN PHẨM</th>
-                <th>SL</th>
-                <th>ĐƠN GIÁ</th>
-                <th>THÀNH TIỀN</th>
-                <th>{lastColumnTitle}</th>
-                <th>GHI CHÚ</th>
-                <th>THAO TÁC</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedTransactions.length === 0 ? (
-                <tr>
-                  <td colSpan="12" className="empty-state">
-                    <div className="empty-icon">
-                      <FileText size={48} strokeWidth={1.5} />
-                    </div>
-                    <div className="empty-title">Chưa có giao dịch</div>
-                    <div className="empty-description">
-                      Nhấn "{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}" để bắt đầu
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                paginatedTransactions.map((t, i) => (
-                  <tr key={t.id || i} className="table-row">
-                    <td className="table-cell">{t.date || '-'}</td>
-                    <td className="table-cell code">{t.transactionCode || '-'}</td>
-                    <td className="table-cell">{t.summary || '-'}</td>
-                    <td className="table-cell">{t.createdBy || '-'}</td>
-                    <td className="table-cell sku">{t.sku}</td>
-                    <td className="table-cell">{t.productName}</td>
-                    <td className="table-cell center">
-                      <span className="quantity-badge">{t.quantity}</span>
-                    </td>
-                    <td className="table-cell right">{formatCurrency(t.unitPrice || 0)}</td>
-                    <td className="table-cell right">
-                      <span className={`amount-text ${isImport ? 'import' : 'export'}`}>
-                        {formatCurrency((t.quantity || 0) * (t.unitPrice || 0))}
-                      </span>
-                    </td>
-                    <td className="table-cell">{t.reason || '-'}</td>
-                    <td className="table-cell">{t.note || '-'}</td>
-                    <td className="table-cell center">
-                      <div className="button-group">
-                        <button 
-                          className="mini-button edit"
-                          onClick={() => handleEditTransaction(t)}
-                          disabled={processing}
-                          title="Chỉnh sửa"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button 
-                          className="mini-button delete"
-                          onClick={() => handleDeleteTransaction(t.id)}
-                          disabled={processing}
-                          title="Xóa"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {renderPagination()}
-
-      {/* Batch Progress Dialog */}
-      {showBatchProgress && (
-        <div className="modal-overlay" style={{ zIndex: 9999 }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '16px',
-            padding: '32px',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
-          }}>
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '20px'
-            }}>
-              {/* Warning Icon */}
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: batchProgress.action.includes('xóa') ? '#FEF3F2' : '#EFF6FF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ fontSize: '32px' }}>
-                  {batchProgress.action.includes('xóa') ? '⚠️' : '📦'}
-                </span>
-              </div>
-
-              {/* Title */}
-              <h3 style={{
-                fontSize: '20px',
-                fontWeight: '600',
-                margin: 0,
-                textAlign: 'center'
-              }}>
-                {batchProgress.action.includes('xóa') 
-                  ? 'Đang xóa sản phẩm' 
-                  : batchProgress.action.includes('Excel')
-                  ? 'Đang import Excel'
-                  : `Đang ${isImport ? 'nhập' : 'xuất'} kho`
-                }
-              </h3>
-
-              {/* Description */}
-              <p style={{
-                fontSize: '14px',
-                color: '#666',
-                margin: 0,
-                textAlign: 'center'
-              }}>
-                {batchProgress.action.includes('xóa') && (
-                  <>
-                    Đang xóa <span style={{ color: '#EF4444', fontWeight: '600' }}>
-                      {filteredTransactions.length} sản phẩm
-                    </span> khỏi hệ thống
-                  </>
-                )}
-                {batchProgress.action.includes('Excel') && (
-                  <>Vui lòng đợi trong giây lát...</>
-                )}
-                {!batchProgress.action.includes('xóa') && !batchProgress.action.includes('Excel') && (
-                  <>Đang xử lý các giao dịch theo batch...</>
-                )}
-              </p>
-
-              {/* Warning Note - Only show for delete */}
-              {batchProgress.action.includes('xóa') && (
-                <div style={{
-                  background: '#FEF3F2',
-                  border: '1px solid #FEE2E2',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  width: '100%'
-                }}>
-                  <p style={{
-                    fontSize: '12px',
-                    color: '#991B1B',
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <span>⚠️</span>
-                    <span>Hành động này không thể hoàn tác!</span>
-                  </p>
-                </div>
-              )}
-
-              {/* Progress */}
-              <div style={{ width: '100%' }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  color: '#666'
-                }}>
-                  <span>{batchProgress.action}</span>
-                  <span>{batchProgress.current}/{batchProgress.total}</span>
-                </div>
-                <div style={{
-                  width: '100%',
-                  height: '8px',
-                  background: '#F3F4F6',
-                  borderRadius: '4px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    width: `${batchProgress.percentage}%`,
-                    height: '100%',
-                    background: batchProgress.action.includes('xóa')
-                      ? 'linear-gradient(90deg, #EF4444 0%, #DC2626 100%)'
-                      : 'linear-gradient(90deg, #3B82F6 0%, #2563EB 100%)',
-                    transition: 'width 0.3s ease'
-                  }} />
-                </div>
-                <div style={{
-                  marginTop: '4px',
-                  fontSize: '12px',
-                  color: '#9CA3AF',
-                  textAlign: 'right'
-                }}>
-                  {batchProgress.percentage}%
-                </div>
-              </div>
-
-              {/* Info Badge */}
-              <div style={{
-                background: '#F9FAFB',
-                border: '1px solid #E5E7EB',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                width: '100%',
-                fontSize: '12px',
-                color: '#6B7280',
-                textAlign: 'center'
-              }}>
-                💡 Batch size: {
-                  batchProgress.action.includes('xóa') 
-                    ? BATCH_CONFIG.DELETE_BATCH
-                    : batchProgress.action.includes('Excel')
-                    ? BATCH_CONFIG.IMPORT_EXCEL
-                    : BATCH_CONFIG.SUBMIT_BATCH
-                } items/batch
-              </div>
-
-              {/* Processing indicator */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '14px',
-                color: '#6B7280'
-              }}>
-                <div style={{
-                  width: '16px',
-                  height: '16px',
-                  border: '2px solid #E5E7EB',
-                  borderTop: '2px solid #3B82F6',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }} />
-                <span>Đang xử lý...</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showImportModal && (
-        <div 
-          className="modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowImportModal(false);
-            }
-          }}
-        >
-          <div className="modal-content">
-            <div className="modal-header">
+      ) : (
+        <>
+          {/* ✅ NHẬP/XUẤT KHO - Hiển thị bảng + modal */}
+          <div className="header-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
-                <h2 className="modal-title">
-                  {editingTransaction ? (
-                    <>
-                      <Edit2 size={24} style={{display: 'inline', marginRight: '8px'}} />
-                      Chỉnh Sửa Phiếu
-                    </>
-                  ) : (
-                    <>
-                      {isImport ? <Inbox size={24} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={24} style={{display: 'inline', marginRight: '8px'}} />}
-                      {isImport ? 'Thêm Phiếu Nhập Kho' : 'Thêm Phiếu Xuất Kho'}
-                    </>
-                  )}
-                </h2>
-                <p className="modal-subtitle">
-                  {editingTransaction 
-                    ? `Chỉnh sửa phiếu ${editingTransaction.transactionCode || '#' + editingTransaction.id}`
-                    : `Nhập thông tin chi tiết các sản phẩm ${isImport ? 'nhập' : 'xuất'} kho`
-                  }
+                <h1 className={`header-title ${isImport ? 'import' : 'export'}`}>
+                  {isImport ? <Inbox size={32} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={32} style={{display: 'inline', marginRight: '8px'}} />}
+                  {isImport ? 'Quản Lý Nhập Kho' : 'Quản Lý Xuất Kho'}
+                </h1>
+                <p className="header-subtitle">
+                  Theo dõi và quản lý các giao dịch {isImport ? 'nhập' : 'xuất'} kho một cách dễ dàng
                 </p>
               </div>
-              <button 
-                className="modal-close"
-                onClick={() => {
-                  setShowImportModal(false);
-                  setEditingTransaction(null);
-                  setRows([{
-                    id: Date.now(),
-                    date: new Date().toISOString().split('T')[0],
-                    transactionCode: '',
-                    summary: '',
-                    createdBy: currentUser?.name || '',
-                    sku: '',
-                    productName: '',
-                    quantity: '',
-                    unitPrice: '',
-                    reason: '',
-                    note: ''
-                  }]);
-                }}
+            </div>
+
+            <div className="stats-grid">
+              <div className="stats-card">
+                <div className="stats-icon">
+                  <BarChart3 size={28} />
+                </div>
+                <div className="stats-value">{stats.total}</div>
+                <div className="stats-label">Tổng giao dịch</div>
+              </div>
+
+              <div className="stats-card">
+                <div className="stats-icon">
+                  <DollarSign size={28} />
+                </div>
+                <div className={`stats-value currency ${isImport ? 'import-color' : 'export-color'}`}>
+                  {formatCurrency(stats.totalAmount)}
+                </div>
+                <div className="stats-label">Tổng giá trị</div>
+              </div>
+
+              <div className="stats-card">
+                <div className="stats-icon">
+                  <Box size={28} />
+                </div>
+                <div className="stats-value">{stats.totalProducts}</div>
+                <div className="stats-label">Loại sản phẩm</div>
+              </div>
+
+              <div className="stats-card">
+                <div className="stats-icon">
+                  <Calendar size={28} />
+                </div>
+                <div className="stats-value">{stats.thisMonth}</div>
+                <div className="stats-label">Tháng này</div>
+              </div>
+            </div>
+
+            <div className="action-bar">
+              <div className="search-wrapper">
+                <div className="search-icon">
+                  <Search size={18} />
+                </div>
+                <input
+                  type="text"
+                  className="search-input"
+                  placeholder="Tìm kiếm mã phiếu, SKU, tên sản phẩm..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              <div className="select-wrapper">
+                <Filter size={16} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280'}} />
+                <select
+                  className="select-dropdown"
+                  value={filterGroup}
+                  onChange={e => setFilterGroup(e.target.value)}
+                  style={{paddingLeft: '36px'}}
+                >
+                  {groups.map(g => (
+                    <option key={g} value={g}>
+                      {g === 'all' ? 'Tất cả nhóm' : g}
+                    </option>
+                  ))}
+                </select>
+                <div className="select-arrow">▼</div>
+              </div>
+
+              <button
+                className="action-button delete"
+                onClick={handleDeleteAllFiltered}
+                disabled={processing}
               >
-                <X size={24} />
+                <Trash2 size={18} />
+                <span>Xóa ({filteredTransactions.length})</span>
+              </button>
+
+              <button 
+                className="action-button import"
+                onClick={handleImportExcel} 
+                disabled={processing}
+              >
+                <FileSpreadsheet size={18} />
+                <span>Import Excel</span>
+              </button>
+
+              <button 
+                className="action-button add"
+                onClick={() => setShowImportModal(true)} 
+                disabled={processing}
+              >
+                <Plus size={18} />
+                <span>{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}</span>
               </button>
             </div>
-            <div className="modal-body">
-              {isImport ? (
-                <ImportManagement
-                  rows={rows}
-                  setRows={setRows}
-                  products={products}
-                  type={transactionType}
-                  currentUser={currentUser}
-                  onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
-                  processing={processing}
-                />
-              ) : (
-                <ExportManagement
-                  rows={rows}
-                  setRows={setRows}
-                  products={products}
-                  currentUser={currentUser}
-                  onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
-                  processing={processing}
-                />
-              )}
+          </div>
+
+          <div className="table-container">
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead className="table-header">
+                  <tr>
+                    <th>NGÀY</th>
+                    <th>MÃ PHIẾU {isImport ? 'NHẬP' : 'XUẤT'}</th>
+                    <th>TÓM TẮT</th>
+                    <th>NGƯỜI LẬP</th>
+                    <th>SKU</th>
+                    <th>TÊN SẢN PHẨM</th>
+                    <th>SL</th>
+                    <th>ĐƠN GIÁ</th>
+                    <th>THÀNH TIỀN</th>
+                    <th>{lastColumnTitle}</th>
+                    <th>GHI CHÚ</th>
+                    <th>THAO TÁC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan="12" className="empty-state">
+                        <div className="empty-icon">
+                          <FileText size={48} strokeWidth={1.5} />
+                        </div>
+                        <div className="empty-title">Chưa có giao dịch</div>
+                        <div className="empty-description">
+                          Nhấn "{isImport ? 'Thêm Phiếu Nhập' : 'Thêm Phiếu Xuất'}" để bắt đầu
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedTransactions.map((t, i) => (
+                      <tr key={t.id || i} className="table-row">
+                        <td className="table-cell">{t.date || '-'}</td>
+                        <td className="table-cell code">{t.transactionCode || '-'}</td>
+                        <td className="table-cell">{t.summary || '-'}</td>
+                        <td className="table-cell">{t.createdBy || '-'}</td>
+                        <td className="table-cell sku">{t.sku}</td>
+                        <td className="table-cell">{t.productName}</td>
+                        <td className="table-cell center">
+                          <span className="quantity-badge">{t.quantity}</span>
+                        </td>
+                        <td className="table-cell right">{formatCurrency(t.unitPrice || 0)}</td>
+                        <td className="table-cell right">
+                          <span className={`amount-text ${isImport ? 'import' : 'export'}`}>
+                            {formatCurrency((t.quantity || 0) * (t.unitPrice || 0))}
+                          </span>
+                        </td>
+                        <td className="table-cell">{t.reason || '-'}</td>
+                        <td className="table-cell">{t.note || '-'}</td>
+                        <td className="table-cell center">
+                          <div className="button-group">
+                            <button 
+                              className="mini-button edit"
+                              onClick={() => handleEditTransaction(t)}
+                              disabled={processing}
+                              title="Chỉnh sửa"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              className="mini-button delete"
+                              onClick={() => handleDeleteTransaction(t.id)}
+                              disabled={processing}
+                              title="Xóa"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
+
+          {renderPagination()}
+
+          {/* Batch Progress Dialog */}
+          {showBatchProgress && (
+            <div className="modal-overlay" style={{ zIndex: 9999 }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '32px',
+                maxWidth: '400px',
+                width: '90%',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '20px'
+                }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: batchProgress.action.includes('xóa') ? '#FEF3F2' : '#EFF6FF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <span style={{ fontSize: '32px' }}>
+                      {batchProgress.action.includes('xóa') ? '⚠️' : '📦'}
+                    </span>
+                  </div>
+
+                  <h3 style={{
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>
+                    {batchProgress.action.includes('xóa') 
+                      ? 'Đang xóa sản phẩm' 
+                      : batchProgress.action.includes('Excel')
+                      ? 'Đang import Excel'
+                      : `Đang ${isImport ? 'nhập' : 'xuất'} kho`
+                    }
+                  </h3>
+
+                  <p style={{
+                    fontSize: '14px',
+                    color: '#666',
+                    margin: 0,
+                    textAlign: 'center'
+                  }}>
+                    {batchProgress.action.includes('xóa') && (
+                      <>
+                        Đang xóa <span style={{ color: '#EF4444', fontWeight: '600' }}>
+                          {filteredTransactions.length} sản phẩm
+                        </span> khỏi hệ thống
+                      </>
+                    )}
+                    {batchProgress.action.includes('Excel') && (
+                      <>Vui lòng đợi trong giây lát...</>
+                    )}
+                    {!batchProgress.action.includes('xóa') && !batchProgress.action.includes('Excel') && (
+                      <>Đang xử lý các giao dịch theo batch...</>
+                    )}
+                  </p>
+
+                  {batchProgress.action.includes('xóa') && (
+                    <div style={{
+                      background: '#FEF3F2',
+                      border: '1px solid #FEE2E2',
+                      borderRadius: '8px',
+                      padding: '12px',
+                      width: '100%'
+                    }}>
+                      <p style={{
+                        fontSize: '12px',
+                        color: '#991B1B',
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <span>⚠️</span>
+                        <span>Hành động này không thể hoàn tác!</span>
+                      </p>
+                    </div>
+                  )}
+
+                  <div style={{ width: '100%' }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '8px',
+                      fontSize: '14px',
+                      color: '#666'
+                    }}>
+                      <span>{batchProgress.action}</span>
+                      <span>{batchProgress.current}/{batchProgress.total}</span>
+                    </div>
+                    <div style={{
+                      width: '100%',
+                      height: '8px',
+                      background: '#F3F4F6',
+                      borderRadius: '4px',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{
+                        width: `${batchProgress.percentage}%`,
+                        height: '100%',
+                        background: batchProgress.action.includes('xóa')
+                          ? 'linear-gradient(90deg, #EF4444 0%, #DC2626 100%)'
+                          : 'linear-gradient(90deg, #3B82F6 0%, #2563EB 100%)',
+                        transition: 'width 0.3s ease'
+                      }} />
+                    </div>
+                    <div style={{
+                      marginTop: '4px',
+                      fontSize: '12px',
+                      color: '#9CA3AF',
+                      textAlign: 'right'
+                    }}>
+                      {batchProgress.percentage}%
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: '#F9FAFB',
+                    border: '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    width: '100%',
+                    fontSize: '12px',
+                    color: '#6B7280',
+                    textAlign: 'center'
+                  }}>
+                    💡 Batch size: {
+                      batchProgress.action.includes('xóa') 
+                        ? BATCH_CONFIG.DELETE_BATCH
+                        : batchProgress.action.includes('Excel')
+                        ? BATCH_CONFIG.IMPORT_EXCEL
+                        : BATCH_CONFIG.SUBMIT_BATCH
+                    } items/batch
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    color: '#6B7280'
+                  }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid #E5E7EB',
+                      borderTop: '2px solid #3B82F6',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <span>Đang xử lý...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal cho Import/Export */}
+          {showImportModal && (
+            <div 
+              className="modal-overlay"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowImportModal(false);
+                }
+              }}
+            >
+              <div className="modal-content">
+                <div className="modal-header">
+                  <div>
+                    <h2 className="modal-title">
+                      {editingTransaction ? (
+                        <>
+                          <Edit2 size={24} style={{display: 'inline', marginRight: '8px'}} />
+                          Chỉnh Sửa Phiếu
+                        </>
+                      ) : (
+                        <>
+                          {isImport ? <Inbox size={24} style={{display: 'inline', marginRight: '8px'}} /> : <PackageOpen size={24} style={{display: 'inline', marginRight: '8px'}} />}
+                          {isImport ? 'Thêm Phiếu Nhập Kho' : 'Thêm Phiếu Xuất Kho'}
+                        </>
+                      )}
+                    </h2>
+                    <p className="modal-subtitle">
+                      {editingTransaction 
+                        ? `Chỉnh sửa phiếu ${editingTransaction.transactionCode || '#' + editingTransaction.id}`
+                        : `Nhập thông tin chi tiết các sản phẩm ${isImport ? 'nhập' : 'xuất'} kho`
+                      }
+                    </p>
+                  </div>
+                  <button 
+                    className="modal-close"
+                    onClick={() => {
+                      setShowImportModal(false);
+                      setEditingTransaction(null);
+                      setRows([{
+                        id: Date.now(),
+                        date: new Date().toISOString().split('T')[0],
+                        transactionCode: '',
+                        summary: '',
+                        createdBy: currentUser?.name || '',
+                        sku: '',
+                        productName: '',
+                        quantity: '',
+                        unitPrice: '',
+                        reason: '',
+                        note: ''
+                      }]);
+                    }}
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  {isImport ? (
+                    <ImportManagement
+                      rows={rows}
+                      setRows={setRows}
+                      products={products}
+                      type={transactionType}
+                      currentUser={currentUser}
+                      onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
+                      processing={processing}
+                    />
+                  ) : (
+                    <ExportManagement
+                      rows={rows}
+                      setRows={setRows}
+                      products={products}
+                      currentUser={currentUser}
+                      onSubmitAll={editingTransaction ? handleSaveEditTransaction : handleSubmitAll}
+                      processing={processing}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }

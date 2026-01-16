@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from "./Components/Navbar";
+import Sidebar from "./Components/Sidebar";
 import DashboardPages from './Pages/Dashboard';
 import LoginPage from './Pages/LoginPage';
 import './App.css';
@@ -22,40 +22,42 @@ function App() {
   return (
     <Router>
       <div className="App">
-        {isAuthenticated && <Navbar user={user} onLogout={handleLogout} />}
+        {isAuthenticated && <Sidebar user={user} onLogout={handleLogout} />}
         
-        <Routes>
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? 
-              <Navigate to="/dashboard" replace /> : 
-              <LoginPage onLogin={handleLogin} />
-            } 
-          />
+        <div className={`app-content ${isAuthenticated ? 'with-sidebar' : ''}`}>
+          <Routes>
+            <Route 
+              path="/login" 
+              element={
+                isAuthenticated ? 
+                <Navigate to="/dashboard" replace /> : 
+                <LoginPage onLogin={handleLogin} />
+              } 
+            />
 
-          {/* Dashboard với nested routes */}
-          <Route
-            path="/dashboard/*"
-            element={
-              isAuthenticated ? 
-              <DashboardPages user={user} /> : 
-              <Navigate to="/login" replace />
-            }
-          />
+            {/* Dashboard với nested routes */}
+            <Route
+              path="/dashboard/*"
+              element={
+                isAuthenticated ? 
+                <DashboardPages user={user} /> : 
+                <Navigate to="/login" replace />
+              }
+            />
 
-          <Route 
-            path="/" 
-            element={
-              <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
-            } 
-          />
-          
-          <Route 
-            path="*" 
-            element={<Navigate to="/" replace />} 
-          />
-        </Routes>
+            <Route 
+              path="/" 
+              element={
+                <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+              } 
+            />
+            
+            <Route 
+              path="*" 
+              element={<Navigate to="/" replace />} 
+            />
+          </Routes>
+        </div>
       </div>
     </Router>
   );

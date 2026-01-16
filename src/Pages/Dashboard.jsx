@@ -1,14 +1,14 @@
 // src/Pages/Dashboard.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import "../assets/styles/Common.css";
 import "../assets/styles/Dashboard.css";
-import { LayoutDashboard, Package, ArrowDownToLine, ArrowUpFromLine, Archive, History } from 'lucide-react';
 
 // Import Services
 import { productService } from '../Services/ProductServices';
 import { historyService } from '../Services/HistoryServices';
 import { inventoryService } from '../Services/InventoryServices';
+import { transactionService } from '../Services/TransactionServices';
 
 // Import Components
 import OverviewTab from './OverviewTabs';
@@ -24,6 +24,7 @@ function DashboardPage({ currentUser, onLogout }) {
   const [products, setProducts] = useState([]);
   const [inventories, setInventories] = useState([]);
   const [historyLogs, setHistoryLogs] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -39,15 +40,17 @@ function DashboardPage({ currentUser, onLogout }) {
       setLoading(true);
       setError(null);
 
-      const [productsRes, inventoriesRes, historyRes] = await Promise.all([
+      const [productsRes, inventoriesRes, historyRes, transactionsRes] = await Promise.all([
         productService.getAll(),
         inventoryService.getAll(),
-        historyService.getAll()
+        historyService.getAll(),
+        transactionService.getAll()
       ]);
 
       setProducts(Array.isArray(productsRes.data) ? productsRes.data : productsRes.data?.data || []);
       setInventories(Array.isArray(inventoriesRes.data) ? inventoriesRes.data : inventoriesRes.data?.data || []);
       setHistoryLogs(Array.isArray(historyRes.data) ? historyRes.data : historyRes.data?.data || []);
+      setTransactions(Array.isArray(transactionsRes.data) ? transactionsRes.data : transactionsRes.data?.data || []);
 
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -57,12 +60,22 @@ function DashboardPage({ currentUser, onLogout }) {
     }
   };
 
-  // Refresh functions
+  // ✅ FIXED: Auto-refresh with delay
   const refreshInventories = async () => {
     try {
+      console.log('🔄 [DASHBOARD] Refreshing inventories...');
+      
+      // ✅ Đợi backend hoàn tất tính toán (sync)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const res = await inventoryService.getAll();
-      setInventories(Array.isArray(res.data) ? res.data : res.data?.data || []);
-    } catch (err) { console.error(err); }
+      const newData = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      
+      console.log(`✅ [DASHBOARD] Inventories refreshed: ${newData.length} items`);
+      setInventories(newData);
+    } catch (err) { 
+      console.error('❌ [DASHBOARD] Error refreshing inventories:', err); 
+    }
   };
 
   const refreshProducts = async () => {
@@ -208,7 +221,20 @@ function DashboardPage({ currentUser, onLogout }) {
   };
 
   const handleTransactionComplete = async () => {
-    await Promise.all([refreshProducts(), refreshInventories(), refreshHistory()]);
+    console.log('✅ [DASHBOARD] Transaction completed, refreshing all data...');
+    await Promise.all([
+      refreshProducts(), 
+      refreshInventories(), 
+      refreshHistory(), 
+      refreshTransactions()
+    ]);
+  };
+
+  const refreshTransactions = async () => {
+    try {
+      const res = await transactionService.getAll();
+      setTransactions(Array.isArray(res.data) ? res.data : res.data?.data || []);
+    } catch (err) { console.error(err); }
   };
 
   const handleAddInventory = (newInv) => setInventories(prev => [...prev, newInv]);
@@ -225,91 +251,42 @@ function DashboardPage({ currentUser, onLogout }) {
 
   return (
     <div className="dashboard-layout">
-      <div className="sidebar-trigger"></div>
-
-      <div className="tabs-vertical">
-        <Link 
-          to="/dashboard" 
-          className={`tab-vertical ${location.pathname === '/dashboard' ? 'active' : ''}`}
-        >
-          <LayoutDashboard size={20} />
-          <span>Tổng quan</span>
-        </Link>
-
-        <Link 
-          to="/dashboard/products" 
-          className={`tab-vertical ${location.pathname.includes('products') ? 'active' : ''}`}
-        >
-          <Package size={20} />
-          <span>Sản phẩm và vật dụng</span>
-        </Link>
-
-        <Link 
-          to="/dashboard/import" 
-          className={`tab-vertical ${location.pathname.includes('import') ? 'active' : ''}`}
-        >
-          <ArrowDownToLine size={20} />
-          <span>Nhập kho</span>
-        </Link>
-
-        <Link 
-          to="/dashboard/export" 
-          className={`tab-vertical ${location.pathname.includes('export') ? 'active' : ''}`}
-        >
-          <ArrowUpFromLine size={20} />
-          <span>Xuất kho</span>
-        </Link>
-
-        <Link 
-          to="/dashboard/inventory" 
-          className={`tab-vertical ${location.pathname.includes('inventory') ? 'active' : ''}`}
-        >
-          <Archive size={20} />
-          <span>Tồn kho</span>
-        </Link>
-
-        <Link 
-          to="/dashboard/history" 
-          className={`tab-vertical ${location.pathname.includes('history') ? 'active' : ''}`}
-        >
-          <History size={20} />
-          <span>Lịch sử hoạt động</span>
-        </Link>
-      </div>
-
-      <div className="dashboard-new">
-        <div className="dashboard-content">
-          <Routes>
-            <Route index element={<OverviewTab products={products} />} />
-            <Route path="products" element={
-              <ProductsTab
-                products={products}
-                onAddProduct={handleAddProduct}
-                onUpdateProduct={handleUpdateProduct}
-                onDeleteProduct={handleDeleteProduct}
-                onRefreshData={refreshProducts}
-                currentUser={currentUser}
-              />
-            } />
-            <Route path="import" element={
-              <TransactionTab type="import" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
-            } />
-            <Route path="export" element={
-              <TransactionTab type="export" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
-            } />
-            <Route path="inventory" element={
-              <InventoryTab
-                inventories={inventories}
-                products={products}
-                onAddInventory={handleAddInventory}
-                onUpdateInventory={handleUpdateInventory}
-                onDeleteInventory={handleDeleteInventory}
-                onRefreshData={refreshInventories}
-              />
-            } />
-            <Route path="history" element={<HistoryTab historyLogs={historyLogs} currentUser={currentUser} />} />
-          </Routes>
-        </div>
+      <div className="dashboard-content">
+        <Routes>
+          <Route index element={<OverviewTab products={products} transactions={transactions} />} />
+          <Route path="overview" element={<OverviewTab products={products} transactions={transactions} />} />
+          <Route path="products" element={
+            <ProductsTab
+              products={products}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onRefreshData={refreshProducts}
+              currentUser={currentUser}
+            />
+          } />
+          <Route path="import" element={
+            <TransactionTab type="import" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
+          } />
+          <Route path="export" element={
+            <TransactionTab type="export" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
+          } />
+          <Route path="adjust" element={
+            <TransactionTab type="adjust" products={products} currentUser={currentUser} onTransactionComplete={handleTransactionComplete} />
+          } />
+          <Route path="inventory" element={
+            <InventoryTab
+              inventories={inventories}
+              setInventories={setInventories}
+              products={products}
+              onAddInventory={handleAddInventory}
+              onUpdateInventory={handleUpdateInventory}
+              onDeleteInventory={handleDeleteInventory}
+              onRefreshData={refreshInventories}
+            />
+          } />
+          <Route path="history" element={<HistoryTab historyLogs={historyLogs} currentUser={currentUser} />} />
+        </Routes>
       </div>
     </div>
   );
