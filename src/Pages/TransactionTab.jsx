@@ -749,7 +749,12 @@ function TransactionTab({
           <AdjustmentForm
             products={products}
             currentUser={currentUser}
-            onComplete={loadTransactions}
+            onComplete={async () => {
+              await loadTransactions();
+              if (onTransactionComplete) {
+                await onTransactionComplete();
+              }
+            }}
           />
         </div>
       ) : (
